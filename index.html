@@ -176,25 +176,18 @@ textarea.inp{resize:vertical;min-height:54px}
   <button class="btn btn-gold btn-full" onclick="saveChar()">Añadir Personaje</button>
 </div></div>
 
-<div id="modal-add-buff" class="overlay"><div class="modal">
-  <div class="modal-title">✨ Añadir Buff<button class="btn-del" onclick="closeModal('modal-add-buff')">✕</button></div>
-  <input type="hidden" id="buff-aid"/><input type="hidden" id="buff-cid"/>
-  <div style="font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;margin-bottom:6px">PRESETS RÁPIDOS</div>
-  <div class="preset-grid" id="buff-presets"></div>
-  <div id="buff-custom" style="display:none">
-    <div style="display:flex;gap:6px">
-      <input id="buff-icon" class="inp" style="width:55px;text-align:center" placeholder="✨"/>
-      <input id="buff-name-inp" class="inp" placeholder="Nombre del buff…"/>
-    </div>
+<div id="modal-custom-buff" class="overlay"><div class="modal">
+  <div class="modal-title"><span id="cb-title">Buff personalizado</span><button class="btn-del" onclick="closeModal('modal-custom-buff')">✕</button></div>
+  <input type="hidden" id="cb-aid"/><input type="hidden" id="cb-cid"/><input type="hidden" id="cb-buffid"/>
+  <label class="lbl">Duración en minutos</label>
+  <input id="cb-mins" class="inp" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="new-password" placeholder="ej: 120 = 2h, 1440 = 1D…"/>
+  <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">
+    ${[60,120,180,360,1440,2880,4320,10080,21600,43200].map(v=>{
+      const l=v<60?v+'m':v<1440?(v/60)+'H':v<10080?(v/1440)+'D':(v/10080)+'S';
+      return `<button class="btn btn-muted btn-xs" onclick="document.getElementById('cb-mins').value=${v}">${l}</button>`;
+    }).join('')}
   </div>
-  <button id="btn-custom-buff" class="btn btn-muted btn-xs" style="margin-bottom:10px" onclick="toggleCustomBuff()">Personalizado…</button>
-  <div style="font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;margin-bottom:6px">DURACIÓN</div>
-  <div class="dur-chips" id="dur-chips"></div>
-  <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px">
-    <input id="buff-mins" class="inp" type="number" min="1" style="flex:1;margin-bottom:0" placeholder="Minutos…"/>
-    <span style="font-size:10px;color:var(--muted)">min</span>
-  </div>
-  <button class="btn btn-gold btn-full" onclick="saveBuff()">Activar Buff</button>
+  <button class="btn btn-gold btn-full" onclick="saveCustomBuff()">Activar</button>
 </div></div>
 
 <div id="modal-add-evento" class="overlay"><div class="modal">
@@ -302,13 +295,13 @@ const DUNGEONS=[
   {id:'drag_g',name:'Dr.Verde',icon:'🌿',reset:'weekly'},{id:'nemere',name:'Nemere',icon:'❄️',reset:'weekly'},
   {id:'razador',name:'Razador',icon:'🔥',reset:'weekly'},{id:'balroc',name:'Balroc',icon:'👿',reset:'weekly'},
 ];
-const BUFF_PRESETS=[
-  {id:'xp',name:'EXP +',icon:'⭐',mins:60},{id:'drop',name:'Drop +',icon:'💎',mins:60},
-  {id:'yang',name:'Yang +',icon:'💰',mins:60},{id:'bless',name:'Bless',icon:'🙏',mins:30},
-  {id:'soma',name:'Soma',icon:'🧪',mins:60},{id:'prem',name:'Premium',icon:'👑',mins:1440},
-  {id:'mall',name:'Mall EXP',icon:'🏪',mins:1440},{id:'atma',name:'Atma',icon:'🔶',mins:60},
+const BUFF_CATALOG = [
+  {id:'inel',     name:'Inel experiență',    icon:'💍', durations:[{l:'1H',v:60},{l:'3H',v:180}],            custom:true},
+  {id:'manusa',   name:'Mănușa tâlharului',  icon:'🧤', durations:[{l:'7D',v:10080},{l:'15D',v:21600},{l:'30D',v:43200}], custom:true},
+  {id:'carte',    name:'Carte comandant',    icon:'📜', durations:[{l:'1H',v:60},{l:'3H',v:180}],            custom:false},
+  {id:'cartep',   name:'Carte comandant +',  icon:'📗', durations:[{l:'3H',v:180}],                          custom:false},
+  {id:'autohunt', name:'Auto Hunt',          icon:'🤖', durations:[{l:'1D',v:1440},{l:'3D',v:4320},{l:'30D',v:43200}],   custom:true},
 ];
-const DUR_CHIPS=[{l:'15m',v:15},{l:'30m',v:30},{l:'1h',v:60},{l:'2h',v:120},{l:'4h',v:240},{l:'8h',v:480},{l:'24h',v:1440}];
 const CLASS_ICON={'Guerrero':'⚔️','Ninja':'🗡️','Shamán':'🔮','Sura':'👹','Lycan':'🐺'};
 const todayMs=()=>{const d=new Date();d.setHours(0,0,0,0);return d.getTime()};
 const weekMs=()=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-d.getDay());return d.getTime()};
@@ -342,7 +335,7 @@ function render(){
 function updateQuickStats(){
   const chars=allChars();
   const bioReady=chars.filter(c=>{const dur=biologDurFromStage(c.biologStage);return dur>0&&c.biolog&&(c.biolog+dur)<=now()}).length;
-  const activeBuffs=chars.reduce((s,c)=>s+(c.buffs||[]).filter(b=>b.expiresAt>now()).length,0);
+  const activeBuffs=chars.reduce((s,c)=>s+BUFF_CATALOG.filter(b=>(c.activeBuffs||{})[b.id]&&(c.activeBuffs||{})[b.id]>now()).length,0);
   const eb=document.getElementById('qs-bio');eb.className='qs-badge qs-bio'+(bioReady>0?' show':'');eb.textContent=`🟢 ${bioReady} biolog listos`;
   const ef=document.getElementById('qs-buff');ef.className='qs-badge qs-buff'+(activeBuffs>0?' show':'');ef.textContent=`✨ ${activeBuffs} buffs`;
   const bb=document.getElementById('badge-bio');bb.className='tab-badge'+(bioReady>0?' show':'');bb.textContent=bioReady;
@@ -552,56 +545,120 @@ function renderMazmorras(){
 }
 
 /* ══ BUFFS ══ */
-let buffPresetSel=null;let buffCustomOpen=false;
-function initBuffModal(){
-  document.getElementById('buff-presets').innerHTML=BUFF_PRESETS.map(p=>`<div class="preset-btn" id="bp-${p.id}" onclick="selPreset('${p.id}')">${p.icon} ${p.name}</div>`).join('');
-  document.getElementById('dur-chips').innerHTML=DUR_CHIPS.map(d=>`<div class="dur-chip" id="dc-${d.v}" onclick="selDur(${d.v})">${d.l}</div>`).join('');
-  selDur(60);
+function setBuffExpiry(aid,cid,buffId,mins){
+  const ms=mins*60*1000;
+  accounts=accounts.map(a=>a.id!==aid?a:{...a,chars:a.chars.map(c=>{
+    if(c.id!==cid)return c;
+    const ab={...(c.activeBuffs||{}),[buffId]:now()+ms};
+    return{...c,activeBuffs:ab};
+  })});
+  save();render();
 }
-function openAddBuff(aid,cid){document.getElementById('buff-aid').value=aid;document.getElementById('buff-cid').value=cid;buffPresetSel=null;buffCustomOpen=false;document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('sel'));document.getElementById('buff-custom').style.display='none';document.getElementById('btn-custom-buff').textContent='Personalizado…';openModal('modal-add-buff')}
-function selPreset(id){buffPresetSel=BUFF_PRESETS.find(p=>p.id===id);document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('sel'));document.getElementById('bp-'+id)?.classList.add('sel');selDur(buffPresetSel.mins)}
-function selDur(v){document.querySelectorAll('.dur-chip').forEach(c=>c.classList.remove('sel'));document.getElementById('dc-'+v)?.classList.add('sel');document.getElementById('buff-mins').value=v}
-function toggleCustomBuff(){buffCustomOpen=!buffCustomOpen;document.getElementById('buff-custom').style.display=buffCustomOpen?'block':'none';document.getElementById('btn-custom-buff').textContent=buffCustomOpen?'← Usar presets':'Personalizado…';if(buffCustomOpen){buffPresetSel=null;document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('sel'))}}
-function saveBuff(){
-  const aid=document.getElementById('buff-aid').value;const cid=document.getElementById('buff-cid').value;
-  const mins=parseInt(document.getElementById('buff-mins').value)||60;
-  let name,icon;
-  if(buffPresetSel){name=buffPresetSel.name;icon=buffPresetSel.icon}else{name=document.getElementById('buff-name-inp').value.trim();icon=document.getElementById('buff-icon').value.trim()||'✨'}
-  if(!name)return;const totalMs=mins*60*1000;
-  accounts=accounts.map(a=>a.id!==aid?a:{...a,chars:a.chars.map(c=>c.id!==cid?c:{...c,buffs:[...(c.buffs||[]),{id:uid(),name,icon,expiresAt:now()+totalMs,totalMs}]})});
-  save();closeModal('modal-add-buff');render();
+function clearBuff(aid,cid,buffId){
+  accounts=accounts.map(a=>a.id!==aid?a:{...a,chars:a.chars.map(c=>{
+    if(c.id!==cid)return c;
+    const ab={...(c.activeBuffs||{})};delete ab[buffId];
+    return{...c,activeBuffs:ab};
+  })});
+  save();render();
 }
-function delBuff(aid,cid,bid){accounts=accounts.map(a=>a.id!==aid?a:{...a,chars:a.chars.map(c=>c.id!==cid?c:{...c,buffs:(c.buffs||[]).filter(b=>b.id!==bid)})});save();render()}
+function addBuffTracking(aid,cid){
+  patchChar(aid,cid,{buffTracked:true});
+}
+function removeBuffTracking(aid,cid){
+  patchChar(aid,cid,{buffTracked:false,activeBuffs:{}});
+}
+function openCustomBuff(aid,cid,buffId,buffName){
+  document.getElementById('cb-aid').value=aid;
+  document.getElementById('cb-cid').value=cid;
+  document.getElementById('cb-buffid').value=buffId;
+  document.getElementById('cb-title').textContent=buffName;
+  document.getElementById('cb-mins').value='';
+  openModal('modal-custom-buff');
+}
+function saveCustomBuff(){
+  const aid=document.getElementById('cb-aid').value;
+  const cid=document.getElementById('cb-cid').value;
+  const buffId=document.getElementById('cb-buffid').value;
+  const mins=parseInt(document.getElementById('cb-mins').value)||0;
+  if(!mins)return;
+  setBuffExpiry(aid,cid,buffId,mins);
+  closeModal('modal-custom-buff');
+}
+
 function renderBuffs(){
   const chars=allChars();
-  if(!chars.length){document.getElementById('buffs-list').innerHTML=`<div class="empty"><div class="e-icon">✨</div><div class="e-text">Sin personajes</div></div>`;return}
-  document.getElementById('buffs-list').innerHTML=chars.map(c=>{
-    const buffs=c.buffs||[];const active=buffs.filter(b=>b.expiresAt>now());
-    return `<div class="card ${active.length?'gold-border':''}">
-      <div style="padding:9px 12px;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center">
-        <div style="display:flex;align-items:center;gap:7px">
-          <span style="font-size:15px">${CLASS_ICON[classLabel(c.class)]||'⚔️'}</span>
-          <span style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:var(--gold2)">${c.name}</span>
-          <span style="font-size:9px;color:var(--muted)">${c.accName}</span>
-          ${active.length?`<span style="font-size:9px;background:#1a0c00;color:var(--gold);padding:1px 6px;border-radius:10px;font-family:'Cinzel',serif">${active.length} activos</span>`:''}
-        </div>
-        <button class="btn btn-gold btn-xs" onclick="openAddBuff('${c.aid}','${c.id}')">＋ Buff</button>
-      </div>
-      <div style="padding:4px 12px">
-        ${buffs.length===0?`<div style="font-size:11px;color:var(--muted2);text-align:center;padding:10px">Sin buffs</div>`:''}
-        ${buffs.map(b=>{const left=b.expiresAt-now();const exp=left<=0;const pct=exp?0:Math.min(100,(left/b.totalMs)*100);
-          return `<div class="buff-row" style="opacity:${exp?0.4:1}">
-            <span style="font-size:20px;flex-shrink:0">${b.icon}</span>
-            <div style="flex:1;min-width:0">
-              <div style="display:flex;justify-content:space-between"><span style="font-size:12px;font-weight:600">${b.name}</span><span style="font-size:11px;color:${exp?'var(--red)':'var(--gold)'}">${exp?'Expirado':fmtTime(left)}</span></div>
-              ${!exp?`<div class="pbar-wrap"><div class="pbar pbar-gold" style="width:${pct}%"></div></div>`:''}
-            </div>
-            <button class="btn-del" onclick="delBuff('${c.aid}','${c.id}','${b.id}')">✕</button>
-          </div>`;}).join('')}
+  const tracked=chars.filter(c=>c.buffTracked);
+  const untracked=chars.filter(c=>!c.buffTracked);
+  const el=document.getElementById('buffs-list');
+
+  const addPanel=`
+    <div style="background:#100800;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;margin-bottom:8px">➕ AÑADIR PERSONAJE A BUFFS</div>
+      <div style="display:flex;gap:6px">
+        <select id="buff-add-sel" class="inp" style="flex:1;margin-bottom:0;font-size:11px">
+          <option value="">— Elige personaje —</option>
+          ${untracked.map(c=>`<option value="${c.aid}|${c.id}">${c.name} · Nv.${c.level||1} · ${c.accName}</option>`).join('')}
+          ${untracked.length===0?`<option disabled>Todos añadidos</option>`:''}
+        </select>
+        <button class="btn btn-gold btn-sm" onclick="addBuffTrackingFromSel()">＋</button>
       </div>
     </div>`;
-  }).join('');
+
+  if(!chars.length){el.innerHTML=`<div class="empty"><div class="e-icon">✨</div><div class="e-text">Sin personajes</div></div>`;return}
+
+  let html=addPanel;
+  if(!tracked.length){
+    html+=`<div class="empty" style="padding:20px"><div class="e-icon">✨</div><div class="e-text">Sin personajes</div><div class="e-sub">Añade un personaje arriba para ver sus buffs</div></div>`;
+  } else {
+    html+=tracked.map(c=>{
+      const ab=c.activeBuffs||{};
+      const activeCount=BUFF_CATALOG.filter(b=>ab[b.id]&&ab[b.id]>now()).length;
+      return `<div class="card ${activeCount?'gold-border':''}">
+        <div style="padding:9px 12px;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span style="font-size:15px">${CLASS_ICON[classLabel(c.class)]||'⚔️'}</span>
+            <span style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:var(--gold2)">${c.name}</span>
+            <span style="font-size:9px;color:var(--muted)">${c.accName}</span>
+            ${activeCount?`<span style="font-size:9px;background:#1a0c00;color:var(--gold);padding:1px 6px;border-radius:10px;font-family:'Cinzel',serif">${activeCount} activos</span>`:''}
+          </div>
+          <button class="btn-del" onclick="removeBuffTracking('${c.aid}','${c.id}')">✕</button>
+        </div>
+        <div style="padding:8px 12px">
+          ${BUFF_CATALOG.map(b=>{
+            const exp=ab[b.id];
+            const active=exp&&exp>now();
+            const left=active?exp-now():0;
+            const pct=active?Math.min(100,(left/(b.durations[b.durations.length-1].v*60*1000))*100):0;
+            return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border2)">
+              <span style="font-size:18px;flex-shrink:0">${b.icon}</span>
+              <div style="flex:1;min-width:0">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                  <span style="font-size:11px;font-family:'Cinzel',serif;color:${active?'var(--gold2)':'var(--muted)'}">${b.name}</span>
+                  ${active?`<span style="font-size:10px;color:var(--gold)">${fmtTime(left)}</span>`:''}
+                </div>
+                ${active?`<div class="pbar-wrap"><div class="pbar pbar-gold" style="width:${pct}%"></div></div>`:''}
+                <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">
+                  ${b.durations.map(d=>`<button class="btn btn-muted btn-xs" onclick="setBuffExpiry('${c.aid}','${c.id}','${b.id}',${d.v})">${d.l}</button>`).join('')}
+                  ${b.custom?`<button class="btn btn-muted btn-xs" onclick="openCustomBuff('${c.aid}','${c.id}','${b.id}','${b.name}')">+T</button>`:''}
+                  ${active?`<button class="btn btn-xs" style="color:var(--red);border-color:rgba(255,80,64,.3);background:rgba(40,0,0,.4)" onclick="clearBuff('${c.aid}','${c.id}','${b.id}')">✕</button>`:''}
+                </div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    }).join('');
+  }
+  el.innerHTML=html;
 }
+function addBuffTrackingFromSel(){
+  const sel=document.getElementById('buff-add-sel');
+  if(!sel||!sel.value)return;
+  const [aid,cid]=sel.value.split('|');
+  addBuffTracking(aid,cid);
+}
+function initBuffModal(){} // kept for compat
 
 /* ══ EVENTOS ══ */
 function saveEvento(){
