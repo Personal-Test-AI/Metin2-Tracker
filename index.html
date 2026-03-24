@@ -347,7 +347,7 @@ function render(){
 function updateQuickStats(){
   const chars=allChars();
   const bioReady=chars.filter(c=>{const dur=biologDurFromStage(c.biologStage);return dur>0&&c.biolog&&(c.biolog+dur)<=now()}).length;
-  const activeBuffs=chars.reduce((s,c)=>s+BUFF_CATALOG.filter(b=>(c.activeBuffs||{})[b.id]&&(c.activeBuffs||{})[b.id]>now()).length,0);
+  const activeBuffs=chars.reduce((s,c)=>{const tb=c.trackedBuffs||[];return s+tb.filter(bid=>(c.activeBuffs||{})[bid]&&(c.activeBuffs||{})[bid]>now()).length},0);
   const eb=document.getElementById('qs-bio');eb.className='qs-badge qs-bio'+(bioReady>0?' show':'');eb.textContent=`🟢 ${bioReady} biolog listos`;
   const ef=document.getElementById('qs-buff');ef.className='qs-badge qs-buff'+(activeBuffs>0?' show':'');ef.textContent=`✨ ${activeBuffs} buffs`;
   const bb=document.getElementById('badge-bio');bb.className='tab-badge'+(bioReady>0?' show':'');bb.textContent=bioReady;
@@ -712,6 +712,13 @@ function addBuffFromSel(aid,cid){
   if(!sel||!sel.value)return;
   addBuffToChar(aid,cid,sel.value);
 }
+function addBuffTrackingFromSel(){
+  const sel=document.getElementById('buff-add-sel');
+  if(!sel||!sel.value)return;
+  const [aid,cid]=sel.value.split('|');
+  addBuffTracking(aid,cid);
+}
+function initBuffModal(){} // kept for compat
 
 /* ══ EVENTOS ══ */
 function saveEvento(){
