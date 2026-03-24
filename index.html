@@ -410,10 +410,13 @@ function resetBiolog(aid,cid){patchChar(aid,cid,{biolog:now()})}
 function clearBiolog(aid,cid){patchChar(aid,cid,{biolog:null})}
 function renderBiolog(){
   const chars=allChars();
-  // Solo mostrar personajes con stage configurado
   const tracked=chars.filter(c=>c.biologStage);
   const untracked=chars.filter(c=>!c.biologStage && (parseInt(c.level)||1)>=30);
   const el=document.getElementById('biolog-list');
+
+  // Guardar valores actuales de los selects antes de re-renderizar
+  const savedChar  = document.getElementById('bio-add-sel')?.value  || '';
+  const savedStage = document.getElementById('bio-stage-sel')?.value || '';
 
   const byState=c=>{const dur=biologDurFromStage(c.biologStage);const l=c.biolog?(c.biolog+dur)-now():null;if(l===null)return 2;return l<=0?0:1};
   const sorted=[...tracked].sort((a,b)=>{const sa=byState(a),sb=byState(b);if(sa!==sb)return sa-sb;const da=biologDurFromStage(a.biologStage),db=biologDurFromStage(b.biologStage);const al=a.biolog?(a.biolog+da)-now():Infinity;const bl=b.biolog?(b.biolog+db)-now():Infinity;return al-bl});
@@ -421,26 +424,27 @@ function renderBiolog(){
   const active=sorted.filter(c=>byState(c)===1);
   const idle=sorted.filter(c=>byState(c)===2);
 
-  // Botón para añadir personaje al biolog
-  const addBtn = untracked.length>0 ? `
-    <div style="margin-bottom:10px">
-      <div style="display:flex;gap:6px;align-items:center">
-        <select id="bio-add-sel" class="inp" style="flex:1;margin-bottom:0;font-size:11px">
-          <option value="">— Elige personaje —</option>
-          ${untracked.map(c=>`<option value="${c.aid}|${c.id}">${c.name} (Nv.${c.level||1})</option>`).join('')}
+  const addBtn = `
+    <div style="background:#100800;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;margin-bottom:8px">➕ AÑADIR PERSONAJE AL BIOLOG</div>
+      <div style="display:flex;gap:6px;flex-direction:column">
+        <select id="bio-add-sel" class="inp" style="margin-bottom:0;font-size:11px">
+          <option value="">— Elige personaje (Lv 30+) —</option>
+          ${untracked.map(c=>`<option value="${c.aid}|${c.id}" ${savedChar===c.aid+'|'+c.id?'selected':''}>${c.name} · Nv.${c.level||1} · ${c.accName}</option>`).join('')}
+          ${untracked.length===0?`<option disabled>Todos los personajes ya están añadidos</option>`:''}
         </select>
-        <select id="bio-stage-sel" class="inp" style="flex:1;margin-bottom:0;font-size:11px">
-          ${BIOLOG_STAGES.map(s=>`<option value="${s.id}">${s.name} — ${s.item}</option>`).join('')}
+        <select id="bio-stage-sel" class="inp" style="margin-bottom:0;font-size:11px">
+          ${BIOLOG_STAGES.map(s=>`<option value="${s.id}" ${savedStage===s.id?'selected':''}>${s.name} (${s.lv}) — ${s.item}</option>`).join('')}
         </select>
-        <button class="btn btn-gold btn-sm" onclick="addToBiolog()">＋</button>
+        <button class="btn btn-gold" style="width:100%" onclick="addToBiolog()">＋ Añadir</button>
       </div>
-    </div>` : '';
+    </div>`;
 
   if(!chars.length){el.innerHTML=`<div class="empty"><div class="e-icon">⏱️</div><div class="e-text">Sin personajes</div><div class="e-sub">Añade cuentas y personajes primero</div></div>`;return}
 
   let html = addBtn;
   if(!tracked.length){
-    html+=`<div class="empty" style="padding:20px"><div class="e-icon">⏱️</div><div class="e-text">Sin personajes en seguimiento</div><div class="e-sub">Selecciona un personaje y su biolog arriba para empezar</div></div>`;
+    html+=`<div class="empty" style="padding:20px"><div class="e-icon">⏱️</div><div class="e-text">Sin personajes en seguimiento</div><div class="e-sub">Selecciona personaje y biolog arriba</div></div>`;
   } else {
     if(ready.length) html+=`<div class="sec-header sec-green">✅ LISTOS — ${ready.length}</div>${ready.map(c=>bilogCard(c,0)).join('')}`;
     if(active.length)html+=`<div class="sec-header sec-gold">⏳ EN COOLDOWN — ${active.length}</div>${active.map(c=>bilogCard(c,1)).join('')}`;
