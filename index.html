@@ -133,12 +133,7 @@ textarea.inp{resize:vertical;min-height:54px}
 
 <div id="content">
   <div id="tab-cuentas" class="tab-panel active">
-    <div class="sort-bar">
-      <button class="btn btn-gold btn-full" onclick="openModal('modal-add-acc')">＋ Nueva Cuenta</button>
-      <select class="inp" style="flex:0 0 130px;margin-bottom:0;font-size:10px" onchange="renderCuentas()">
-        <option value="name">↓ Nombre</option><option value="level">↓ Nivel máx</option><option value="yang">↓ Yang total</option>
-      </select>
-    </div>
+    <button class="btn btn-gold btn-full" style="margin-bottom:12px" onclick="openModal('modal-add-acc')">＋ Nueva Cuenta</button>
     <div id="cuentas-list"></div>
   </div>
   <div id="tab-biolog" class="tab-panel">
@@ -351,26 +346,17 @@ function updateQuickStats(){
 /* ══ CUENTAS ══ */
 let collapsed={};
 function renderCuentas(){
-  const sortSel=document.querySelector('#tab-cuentas select');const sort=sortSel?sortSel.value:'name';
-  const sorted=[...accounts].sort((a,b)=>{
-    if(sort==='level'){const ma=Math.max(0,...a.chars.map(c=>c.level||1));const mb=Math.max(0,...b.chars.map(c=>c.level||1));return mb-ma}
-    if(sort==='yang'){return b.chars.reduce((s,c)=>s+(c.yang||0),0)-a.chars.reduce((s,c)=>s+(c.yang||0),0)}
-    return a.name.localeCompare(b.name);
-  });
   const el=document.getElementById('cuentas-list');
   if(!accounts.length){el.innerHTML=`<div class="empty"><div class="e-icon">👤</div><div class="e-text">Sin cuentas</div><div class="e-sub">Pulsa "+ Nueva Cuenta" para empezar</div></div>`;return}
-  el.innerHTML=sorted.map((acc,ri)=>{
+  el.innerHTML=accounts.map((acc)=>{
     const open=!collapsed[acc.id];
-    const totalYang=acc.chars.reduce((s,c)=>s+(c.yang||0),0);
-    const bReady=acc.chars.filter(c=>{const dur=biologDurFromStage(c.biologStage);return dur>0&&c.biolog&&(c.biolog+dur)<=now()}).length;
-    const maxLv=acc.chars.length?Math.max(...acc.chars.map(c=>c.level||1)):0;
-    return `<div class="card ${bReady>0?'ready':''}">
+    return `<div class="card">
       <div class="card-header" onclick="toggleCollapse('${acc.id}')">
         <div style="display:flex;align-items:center;gap:9px">
-          <div class="rank rank-${ri<3?ri+1:'n'}">${ri+1}</div>
+          <span style="font-size:20px">👤</span>
           <div>
-            <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:var(--gold2)">${acc.name}</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:1px">${acc.chars.length} pers · Lv.${maxLv} · ${totalYang.toLocaleString()}💰${bReady>0?`<span style="color:var(--green);margin-left:5px">· ${bReady} bio ✓</span>`:''}</div>
+            <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:var(--gold2)">${acc.name}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:1px">${acc.chars.length} personaje${acc.chars.length!==1?'s':''}</div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
@@ -387,41 +373,15 @@ function renderCuentas(){
   }).join('');
 }
 function charRowHTML(aid,c){
-  const dur=biologDurFromStage(c.biologStage);const left=dur>0&&c.biolog?(c.biolog+dur)-now():null;const ready=left!==null&&left<=0;
-  const noAccess=!c.biologStage;
-  const kc=`tag-${(c.kingdom||'Shinsoo').toLowerCase()}`;
-  return `<div class="char-row ${ready?'bio-ready':''}">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start">
-      <div>
-        <span style="font-size:15px;vertical-align:middle">${CLASS_ICON[classLabel(c.class)]||'⚔️'}</span>
+  return `<div class="char-row">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:16px">${CLASS_ICON[classLabel(c.class)]||'⚔️'}</span>
         <span class="char-name">${c.name}</span>
         <span class="tag tag-level">Nv.${c.level||1}</span>
-        <span class="tag ${kc}">${c.kingdom||'Shinsoo'}</span>
       </div>
       <button class="btn-del" onclick="delChar('${aid}','${c.id}')">✕</button>
     </div>
-    <div style="margin-top:7px">
-      <label class="lbl" style="margin-bottom:3px">⏱ BIOLOG</label>
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        <select onchange="patchChar('${aid}','${c.id}',{biologStage:this.value,biolog:null})" style="flex:1;background:#050300;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-size:10px;font-family:'Crimson Text',serif;min-width:130px">
-          <option value="">— Sin biolog —</option>
-          ${BIOLOG_STAGES.map(s=>`<option value="${s.id}" ${c.biologStage===s.id?'selected':''}>${s.name} (${s.lv})</option>`).join('')}
-        </select>
-        ${!noAccess?`
-          ${left===null?`<span style="font-size:10px;color:var(--muted2)">—</span>`
-            :ready?`<span style="font-size:10px;color:var(--green);font-weight:700">✓ LISTO</span>`
-            :`<span style="font-size:10px;color:var(--gold)">${fmtTime(left)}</span>`}
-          <button class="btn btn-gold btn-xs" onclick="resetBiolog('${aid}','${c.id}')">Reset</button>
-          ${c.biolog?`<button class="btn btn-muted btn-xs" onclick="clearBiolog('${aid}','${c.id}')">✕</button>`:''}
-        `:''}
-      </div>
-    </div>
-    <div class="yang-row">
-      <span style="font-size:10px;color:var(--muted)">💰</span>
-      <input class="inp" type="number" value="${c.yang||0}" onchange="patchChar('${aid}','${c.id}',{yang:parseInt(this.value)||0})" style="width:90px;margin-bottom:0;padding:3px 7px;font-size:11px"/>
-      <span style="font-size:10px;color:var(--muted)">yang</span>
-    </div>
-    <input class="inp" placeholder="Notas…" value="${(c.notes||'').replace(/"/g,'&quot;')}" onchange="patchChar('${aid}','${c.id}',{notes:this.value})" style="margin-top:5px;margin-bottom:0;padding:3px 8px;font-size:10px;color:var(--muted)"/>
   </div>`;
 }
 function toggleCollapse(id){collapsed[id]=!collapsed[id];renderCuentas()}
