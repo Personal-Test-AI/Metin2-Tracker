@@ -155,19 +155,23 @@ textarea.inp{resize:vertical;min-height:54px}
 
 <!-- MODALS -->
 <div id="modal-add-acc" class="overlay"><div class="modal">
+  <input type="text" style="display:none" autocomplete="username"/>
+  <input type="password" style="display:none" autocomplete="new-password"/>
   <div class="modal-title">➕ Nueva Cuenta<button class="btn-del" onclick="closeModal('modal-add-acc')">✕</button></div>
   <label class="lbl">Nombre de la cuenta</label>
-  <input id="acc-name" class="inp" placeholder="ej: Main, Alt, Farm…" autocomplete="off" onkeydown="if(event.key==='Enter')saveAccount()"/>
+  <input id="acc-name" class="inp" placeholder="ej: Main, Alt, Farm…" autocomplete="new-password" onkeydown="if(event.key==='Enter')saveAccount()"/>
   <button class="btn btn-gold btn-full" onclick="saveAccount()">Crear Cuenta</button>
 </div></div>
 
 <div id="modal-add-char" class="overlay"><div class="modal">
+  <input type="text" style="display:none" autocomplete="username"/>
+  <input type="password" style="display:none" autocomplete="new-password"/>
   <div class="modal-title">⚔ Nuevo Personaje<button class="btn-del" onclick="closeModal('modal-add-char')">✕</button></div>
   <input type="hidden" id="char-aid"/>
   <label class="lbl">Nombre del personaje</label>
-  <input id="char-name" class="inp" placeholder="Nombre…" autocomplete="off" onkeydown="if(event.key==='Enter')saveChar()"/>
+  <input id="char-name" class="inp" placeholder="Nombre…" autocomplete="new-password" onkeydown="if(event.key==='Enter')saveChar()"/>
   <div style="display:flex;gap:8px">
-    <div style="flex:1"><label class="lbl">Nivel</label><input id="char-level" class="inp" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="1"/></div>
+    <div style="flex:1"><label class="lbl">Nivel</label><input id="char-level" class="inp" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="new-password" placeholder="1"/></div>
     <div style="flex:2"><label class="lbl">Clase</label>
       <select id="char-class" class="inp" autocomplete="off">
         <option>⚔️ Guerrero</option><option>🗡️ Ninja</option><option>🔮 Shamán</option><option>👹 Sura</option><option>🐺 Lycan</option>
