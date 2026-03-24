@@ -379,6 +379,7 @@ function charRowHTML(aid,c){
         <span style="font-size:16px">${CLASS_ICON[classLabel(c.class)]||'⚔️'}</span>
         <span class="char-name">${c.name}</span>
         <span class="tag tag-level">Nv.${c.level||1}</span>
+        <span class="tag tag-${(c.kingdom||'Shinsoo').toLowerCase()}">${c.kingdom||'Shinsoo'}</span>
       </div>
       <button class="btn-del" onclick="delChar('${aid}','${c.id}')">✕</button>
     </div>
