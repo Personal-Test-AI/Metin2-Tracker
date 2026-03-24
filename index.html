@@ -179,13 +179,20 @@ textarea.inp{resize:vertical;min-height:54px}
 <div id="modal-custom-buff" class="overlay"><div class="modal">
   <div class="modal-title"><span id="cb-title">Buff personalizado</span><button class="btn-del" onclick="closeModal('modal-custom-buff')">✕</button></div>
   <input type="hidden" id="cb-aid"/><input type="hidden" id="cb-cid"/><input type="hidden" id="cb-buffid"/>
-  <label class="lbl">Duración en minutos</label>
-  <input id="cb-mins" class="inp" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="new-password" placeholder="ej: 120 = 2h, 1440 = 1D…"/>
-  <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">
-    ${[60,120,180,360,1440,2880,4320,10080,21600,43200].map(v=>{
-      const l=v<60?v+'m':v<1440?(v/60)+'H':v<10080?(v/1440)+'D':(v/10080)+'S';
-      return `<button class="btn btn-muted btn-xs" onclick="document.getElementById('cb-mins').value=${v}">${l}</button>`;
-    }).join('')}
+  <label class="lbl">DURACIÓN</label>
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    <div style="flex:1;text-align:center">
+      <label class="lbl" style="text-align:center;display:block">Días</label>
+      <input id="cb-days" class="inp" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="new-password" placeholder="0" style="text-align:center;font-size:16px;padding:10px"/>
+    </div>
+    <div style="flex:1;text-align:center">
+      <label class="lbl" style="text-align:center;display:block">Horas</label>
+      <input id="cb-hours" class="inp" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="new-password" placeholder="0" style="text-align:center;font-size:16px;padding:10px"/>
+    </div>
+    <div style="flex:1;text-align:center">
+      <label class="lbl" style="text-align:center;display:block">Minutos</label>
+      <input id="cb-mins2" class="inp" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="new-password" placeholder="0" style="text-align:center;font-size:16px;padding:10px"/>
+    </div>
   </div>
   <button class="btn btn-gold btn-full" onclick="saveCustomBuff()">Activar</button>
 </div></div>
@@ -296,11 +303,16 @@ const DUNGEONS=[
   {id:'razador',name:'Razador',icon:'🔥',reset:'weekly'},{id:'balroc',name:'Balroc',icon:'👿',reset:'weekly'},
 ];
 const BUFF_CATALOG = [
-  {id:'inel',     name:'Inel experiență',    icon:'💍', durations:[{l:'1H',v:60},{l:'3H',v:180}],            custom:true},
-  {id:'manusa',   name:'Mănușa tâlharului',  icon:'🧤', durations:[{l:'7D',v:10080},{l:'15D',v:21600},{l:'30D',v:43200}], custom:true},
-  {id:'carte',    name:'Carte comandant',    icon:'📜', durations:[{l:'1H',v:60},{l:'3H',v:180}],            custom:false},
-  {id:'cartep',   name:'Carte comandant +',  icon:'📗', durations:[{l:'3H',v:180}],                          custom:false},
-  {id:'autohunt', name:'Auto Hunt',          icon:'🤖', durations:[{l:'1D',v:1440},{l:'3D',v:4320},{l:'30D',v:43200}],   custom:true},
+  {id:'inel',     name:'Inel experiență',       icon:'💍', durations:[{l:'1H',v:60},{l:'3H',v:180}],                        custom:true},
+  {id:'manusa',   name:'Mănușa tâlharului',     icon:'🧤', durations:[{l:'7D',v:10080},{l:'15D',v:21600},{l:'30D',v:43200}], custom:true},
+  {id:'carte',    name:'Carte comandant',        icon:'📜', durations:[{l:'1H',v:60},{l:'3H',v:180}],                        custom:false},
+  {id:'cartep',   name:'Carte comandant +',      icon:'📗', durations:[{l:'3H',v:180}],                                      custom:false},
+  {id:'autohunt', name:'Auto Hunt',              icon:'🤖', durations:[{l:'1D',v:1440},{l:'3D',v:4320},{l:'30D',v:43200}],   custom:true},
+  {id:'licoare1', name:'Licoare înțelepciunii',  icon:'🧪', durations:[{l:'1H',v:60}],                                       custom:false},
+  {id:'licoare3', name:'Licoare înțelepciunii',  icon:'🧪', durations:[{l:'3H',v:180}],                                      custom:false},
+  {id:'yabby',    name:'Yabby',                  icon:'🦞', durations:[{l:'30M',v:30}],                                      custom:false},
+  {id:'peste',    name:'Peste auriu',            icon:'🐟', durations:[{l:'30M',v:30}],                                      custom:false},
+  {id:'cristal',  name:'Cristal Energie',        icon:'💠', durations:[{l:'2H',v:120}],                                      custom:false},
 ];
 const CLASS_ICON={'Guerrero':'⚔️','Ninja':'🗡️','Shamán':'🔮','Sura':'👹','Lycan':'🐺'};
 const todayMs=()=>{const d=new Date();d.setHours(0,0,0,0);return d.getTime()};
@@ -581,26 +593,47 @@ function openCustomBuff(aid,cid,buffId,buffName){
   document.getElementById('cb-cid').value=cid;
   document.getElementById('cb-buffid').value=buffId;
   document.getElementById('cb-title').textContent=buffName;
-  document.getElementById('cb-mins').value='';
+  document.getElementById('cb-days').value='';
+  document.getElementById('cb-hours').value='';
+  document.getElementById('cb-mins2').value='';
   openModal('modal-custom-buff');
 }
 function saveCustomBuff(){
   const aid=document.getElementById('cb-aid').value;
   const cid=document.getElementById('cb-cid').value;
   const buffId=document.getElementById('cb-buffid').value;
-  const mins=parseInt(document.getElementById('cb-mins').value)||0;
-  if(!mins)return;
-  setBuffExpiry(aid,cid,buffId,mins);
+  const days=parseInt(document.getElementById('cb-days').value)||0;
+  const hours=parseInt(document.getElementById('cb-hours').value)||0;
+  const mins=parseInt(document.getElementById('cb-mins2').value)||0;
+  const total=days*1440+hours*60+mins;
+  if(!total)return;
+  setBuffExpiry(aid,cid,buffId,total);
   closeModal('modal-custom-buff');
 }
 
+function addBuffToChar(aid,cid,buffId){
+  accounts=accounts.map(a=>a.id!==aid?a:{...a,chars:a.chars.map(c=>{
+    if(c.id!==cid)return c;
+    const tb=[...new Set([...(c.trackedBuffs||[]),buffId])];
+    return{...c,trackedBuffs:tb};
+  })});
+  save();render();
+}
+function removeBuffFromDashboard(aid,cid,buffId){
+  accounts=accounts.map(a=>a.id!==aid?a:{...a,chars:a.chars.map(c=>{
+    if(c.id!==cid)return c;
+    const tb=(c.trackedBuffs||[]).filter(b=>b!==buffId);
+    const ab={...(c.activeBuffs||{})};delete ab[buffId];
+    return{...c,trackedBuffs:tb,activeBuffs:ab};
+  })});
+  save();render();
+}
 function renderBuffs(){
   const chars=allChars();
-  const tracked=chars.filter(c=>c.buffTracked);
+  const tracked=chars.filter(c=>c.buffTracked).sort((a,b)=>(parseInt(b.level)||1)-(parseInt(a.level)||1));
   const untracked=chars.filter(c=>!c.buffTracked);
   const el=document.getElementById('buffs-list');
-
-  const savedBuffChar = document.getElementById('buff-add-sel')?.value || '';
+  const savedBuffChar=document.getElementById('buff-add-sel')?.value||'';
 
   const addPanel=`
     <div style="background:#100800;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px">
@@ -619,11 +652,13 @@ function renderBuffs(){
 
   let html=addPanel;
   if(!tracked.length){
-    html+=`<div class="empty" style="padding:20px"><div class="e-icon">✨</div><div class="e-text">Sin personajes</div><div class="e-sub">Añade un personaje arriba para ver sus buffs</div></div>`;
+    html+=`<div class="empty" style="padding:20px"><div class="e-icon">✨</div><div class="e-text">Sin personajes</div><div class="e-sub">Añade un personaje arriba</div></div>`;
   } else {
     html+=tracked.map(c=>{
       const ab=c.activeBuffs||{};
-      const activeCount=BUFF_CATALOG.filter(b=>ab[b.id]&&ab[b.id]>now()).length;
+      const tb=c.trackedBuffs||[];
+      const activeCount=tb.filter(bid=>ab[bid]&&ab[bid]>now()).length;
+      const available=BUFF_CATALOG.filter(b=>!tb.includes(b.id));
       return `<div class="card ${activeCount?'gold-border':''}">
         <div style="padding:9px 12px;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center">
           <div style="display:flex;align-items:center;gap:7px">
@@ -632,12 +667,13 @@ function renderBuffs(){
             <span style="font-size:9px;color:var(--muted)">${c.accName}</span>
             ${activeCount?`<span style="font-size:9px;background:#1a0c00;color:var(--gold);padding:1px 6px;border-radius:10px;font-family:'Cinzel',serif">${activeCount} activos</span>`:''}
           </div>
-          <button class="btn-del" onclick="removeBuffTracking('${c.aid}','${c.id}')">✕</button>
+          <button class="btn-del" title="Quitar personaje" onclick="removeBuffTracking('${c.aid}','${c.id}')">✕</button>
         </div>
-        <div style="padding:8px 12px">
-          ${BUFF_CATALOG.map(b=>{
-            const exp=ab[b.id];
-            const active=exp&&exp>now();
+        <div style="padding:6px 12px">
+          ${tb.length===0?`<div style="font-size:11px;color:var(--muted2);text-align:center;padding:10px">Sin buffs — añade uno abajo ↓</div>`:''}
+          ${tb.map(bid=>{
+            const b=BUFF_CATALOG.find(x=>x.id===bid);if(!b)return'';
+            const exp=ab[bid];const active=exp&&exp>now();
             const left=active?exp-now():0;
             const pct=active?Math.min(100,(left/(b.durations[b.durations.length-1].v*60*1000))*100):0;
             return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border2)">
@@ -654,21 +690,28 @@ function renderBuffs(){
                   ${active?`<button class="btn btn-xs" style="color:var(--red);border-color:rgba(255,80,64,.3);background:rgba(40,0,0,.4)" onclick="clearBuff('${c.aid}','${c.id}','${b.id}')">✕</button>`:''}
                 </div>
               </div>
+              <button style="background:none;border:none;color:var(--muted2);cursor:pointer;font-size:16px;padding:0 3px;line-height:1" title="Quitar buff" onclick="removeBuffFromDashboard('${c.aid}','${c.id}','${b.id}')">−</button>
             </div>`;
           }).join('')}
         </div>
+        ${available.length>0?`
+        <div style="padding:6px 12px 10px;border-top:1px solid var(--border2);display:flex;gap:6px">
+          <select id="buff-sel-${c.id}" class="inp" style="flex:1;margin-bottom:0;font-size:11px">
+            <option value="">＋ Añadir buff al dashboard…</option>
+            ${available.map(b=>`<option value="${b.id}">${b.icon} ${b.name} (${b.durations.map(d=>d.l).join('/')})</option>`).join('')}
+          </select>
+          <button class="btn btn-gold btn-sm" onclick="addBuffFromSel('${c.aid}','${c.id}')">＋</button>
+        </div>`:''}
       </div>`;
     }).join('');
   }
   el.innerHTML=html;
 }
-function addBuffTrackingFromSel(){
-  const sel=document.getElementById('buff-add-sel');
+function addBuffFromSel(aid,cid){
+  const sel=document.getElementById(`buff-sel-${cid}`);
   if(!sel||!sel.value)return;
-  const [aid,cid]=sel.value.split('|');
-  addBuffTracking(aid,cid);
+  addBuffToChar(aid,cid,sel.value);
 }
-function initBuffModal(){} // kept for compat
 
 /* ══ EVENTOS ══ */
 function saveEvento(){
