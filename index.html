@@ -120,14 +120,12 @@ textarea.inp{resize:vertical;min-height:54px}
   <div id="quick-stats">
     <span id="qs-bio" class="qs-badge qs-bio"></span>
     <span id="qs-buff" class="qs-badge qs-buff"></span>
-    <span id="qs-dung" class="qs-badge qs-dung"></span>
   </div>
 </div>
 
 <div id="tabs">
   <button class="tab-btn active" onclick="switchTab('cuentas')"><span class="t-icon">👤</span>CUENTAS</button>
   <button class="tab-btn" onclick="switchTab('biolog')"><span class="t-icon" style="position:relative">⏱️<span id="badge-bio" class="tab-badge"></span></span>BIOLOG</button>
-  <button class="tab-btn" onclick="switchTab('mazmorras')"><span class="t-icon">🏰</span>MAZMORRAS</button>
   <button class="tab-btn" onclick="switchTab('buffs')"><span class="t-icon" style="position:relative">✨<span id="badge-buff" class="tab-badge"></span></span>BUFFS</button>
   <button class="tab-btn" onclick="switchTab('eventos')"><span class="t-icon">📅</span>EVENTOS</button>
 </div>
@@ -140,12 +138,6 @@ textarea.inp{resize:vertical;min-height:54px}
   <div id="tab-biolog" class="tab-panel">
     <div style="font-size:10px;color:var(--muted);text-align:center;margin-bottom:10px;font-family:'Cinzel',serif;letter-spacing:1px">Pulsa RESET cada vez que hagas el biolog</div>
     <div id="biolog-list"></div>
-  </div>
-  <div id="tab-mazmorras" class="tab-panel">
-    <div style="display:flex;gap:12px;font-size:9px;color:var(--muted);margin-bottom:10px;justify-content:center;font-family:'Cinzel',serif">
-      <span style="color:var(--green)">▐ Diaria</span><span style="color:var(--blue)">▐ Semanal</span>
-    </div>
-    <div id="mazmorras-list"></div>
   </div>
   <div id="tab-buffs" class="tab-panel"><div id="buffs-list"></div></div>
   <div id="tab-eventos" class="tab-panel">
@@ -344,7 +336,6 @@ function render(){
   updateQuickStats();
   if(currentTab==='cuentas')renderCuentas();
   if(currentTab==='biolog')renderBiolog();
-  if(currentTab==='mazmorras')renderMazmorras();
   if(currentTab==='buffs')renderBuffs();
   if(currentTab==='eventos')renderEventos();
 }
@@ -352,11 +343,8 @@ function updateQuickStats(){
   const chars=allChars();
   const bioReady=chars.filter(c=>{const dur=biologDurFromStage(c.biologStage);return dur>0&&c.biolog&&(c.biolog+dur)<=now()}).length;
   const activeBuffs=chars.reduce((s,c)=>s+(c.buffs||[]).filter(b=>b.expiresAt>now()).length,0);
-  const dungDone=chars.reduce((s,c)=>s+DUNGEONS.filter(d=>isDungDone(c,d)).length,0);
-  const dungTotal=chars.length*DUNGEONS.length;
   const eb=document.getElementById('qs-bio');eb.className='qs-badge qs-bio'+(bioReady>0?' show':'');eb.textContent=`🟢 ${bioReady} biolog listos`;
   const ef=document.getElementById('qs-buff');ef.className='qs-badge qs-buff'+(activeBuffs>0?' show':'');ef.textContent=`✨ ${activeBuffs} buffs`;
-  const ed=document.getElementById('qs-dung');ed.className='qs-badge qs-dung'+(dungTotal>0?' show':'');ed.textContent=`🏰 ${dungDone}/${dungTotal}`;
   const bb=document.getElementById('badge-bio');bb.className='tab-badge'+(bioReady>0?' show':'');bb.textContent=bioReady;
   const bbu=document.getElementById('badge-buff');bbu.className='tab-badge'+(activeBuffs>0?' show':'');bbu.textContent=activeBuffs;
 }
