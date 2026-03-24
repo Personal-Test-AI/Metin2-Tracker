@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>⚔ Metin2 Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --gold:#c9a227;--gold2:#f0dc80;--gold3:#7a5a10;
+  --bg2:#100800;--card:#160a00;--card2:#1f1000;
+  --border:#3a2510;--border2:#251808;
+  --text:#e8d5a3;--muted:#6a5030;--muted2:#3a2510;
+  --green:#4dff8a;--red:#ff5040;--blue:#4aadff;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Crimson Text',Georgia,serif;background:#000;color:var(--text);display:flex;flex-direction:column;max-width:500px;margin:0 auto;height:100%}
+body::before{content:'';position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(140,80,0,.18),transparent 70%),#07040f;pointer-events:none}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg2)}::-webkit-scrollbar-thumb{background:var(--gold3);border-radius:2px}
+#sync-bar{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:500px;z-index:500;font-family:'Cinzel',serif;font-size:9px;letter-spacing:1px;text-align:center;padding:5px;transition:all .3s;pointer-events:none;display:none}
+#sync-bar.syncing{display:block;background:rgba(201,162,39,.15);color:var(--gold)}
+#sync-bar.ok{display:block;background:rgba(77,255,138,.1);color:var(--green)}
+#sync-bar.err{display:block;background:rgba(255,80,64,.1);color:var(--red)}
+#header{position:relative;z-index:10;background:linear-gradient(180deg,#1e0d00,#0e0600);border-bottom:1px solid var(--gold3);padding:10px 16px 7px;text-align:center;flex-shrink:0;box-shadow:0 4px 32px rgba(201,162,39,.2)}
+#header h1{font-family:'Cinzel',serif;font-size:17px;font-weight:900;color:var(--gold2);letter-spacing:4px;text-shadow:0 0 30px rgba(201,162,39,.6)}
+#header .sub{font-size:8px;color:var(--muted);letter-spacing:5px;margin-top:1px}
+#quick-stats{display:flex;justify-content:center;gap:10px;margin-top:6px;flex-wrap:wrap}
+.qs-badge{font-size:9px;padding:2px 8px;border-radius:10px;border:1px solid;display:none}
+.qs-badge.show{display:inline-block}
+.qs-bio{color:var(--green);border-color:rgba(77,255,138,.3);background:rgba(0,50,20,.5)}
+.qs-buff{color:var(--gold);border-color:rgba(201,162,39,.3);background:rgba(30,15,0,.5)}
+.qs-dung{color:var(--blue);border-color:rgba(74,173,255,.3);background:rgba(0,20,50,.5)}
+#tabs{position:relative;z-index:10;background:#0c0600;border-bottom:1px solid var(--border2);display:flex;overflow-x:auto;flex-shrink:0;scrollbar-width:none}
+#tabs::-webkit-scrollbar{display:none}
+.tab-btn{flex-shrink:0;padding:9px 13px 7px;font-family:'Cinzel',serif;font-size:9px;font-weight:600;letter-spacing:1px;cursor:pointer;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;transition:color .2s,border-color .2s;white-space:nowrap;display:flex;flex-direction:column;align-items:center;gap:3px}
+.tab-btn .t-icon{font-size:16px}
+.tab-btn.active{color:var(--gold2);border-bottom-color:var(--gold)}
+.tab-btn:hover{color:var(--gold)}
+.tab-badge{position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:7px;border-radius:8px;padding:1px 4px;font-family:'Cinzel',serif;display:none}
+.tab-badge.show{display:block}
+#content{flex:1;overflow-y:auto;position:relative;z-index:1}
+.tab-panel{display:none;padding:12px;animation:fadeIn .2s}
+.tab-panel.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.card{background:linear-gradient(135deg,var(--card),var(--card2));border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden;transition:border-color .2s}
+.card.ready{border-color:rgba(77,255,138,.5)}.card.gold-border{border-color:rgba(201,162,39,.5)}
+.card-header{padding:10px 13px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
+.card-header:hover{background:rgba(255,255,255,.02)}
+.card-body{border-top:1px solid var(--border2);padding:10px 12px}
+.char-row{background:rgba(0,0,0,.3);border:1px solid var(--border2);border-radius:8px;padding:9px 11px;margin-bottom:7px;transition:border-color .2s}
+.char-row.bio-ready{border-color:rgba(77,255,138,.4)}
+.char-name{font-weight:600;font-size:14px;color:var(--text)}
+.tag{display:inline-block;font-size:8px;padding:1px 5px;border-radius:3px;font-family:'Cinzel',serif;letter-spacing:.5px;vertical-align:middle;margin-left:4px}
+.tag-level{background:#1a0c00;color:var(--gold);border:1px solid var(--gold3)}
+.tag-shinsoo{color:#4aadff;border:1px solid rgba(74,173,255,.3);background:rgba(0,20,50,.5)}
+.tag-chunjo{color:#ff8040;border:1px solid rgba(255,128,64,.3);background:rgba(50,15,0,.5)}
+.tag-jinno{color:#50d070;border:1px solid rgba(80,208,112,.3);background:rgba(0,30,10,.5)}
+.pbar-wrap{height:5px;background:#0a0500;border-radius:3px;overflow:hidden;margin:5px 0}
+.pbar{height:100%;border-radius:3px;transition:width .8s ease}
+.pbar-gold{background:linear-gradient(90deg,var(--gold3),var(--gold2))}.pbar-green{background:var(--green)}
+.dung-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:5px;padding:3px 0}
+.dung-btn{background:#0c0600;border:1px solid var(--border2);border-radius:7px;padding:7px 5px;cursor:pointer;font-family:'Crimson Text',serif;display:flex;flex-direction:column;align-items:center;gap:2px;transition:all .15s}
+.dung-btn:hover{border-color:var(--gold3)}
+.dung-btn.done-daily{background:rgba(10,30,15,.8);border-color:rgba(77,255,138,.4)}
+.dung-btn.done-weekly{background:rgba(10,15,30,.8);border-color:rgba(74,173,255,.4)}
+.dung-btn .d-icon{font-size:18px}.dung-btn .d-name{font-size:9px;color:var(--muted);text-align:center;line-height:1.2}
+.dung-btn.done-daily .d-name{color:var(--green);text-decoration:line-through}
+.dung-btn.done-weekly .d-name{color:var(--blue);text-decoration:line-through}
+.dung-btn .d-reset{font-size:7px;color:var(--muted2);font-family:'Cinzel',serif}
+.buff-row{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--border2)}
+.buff-row:last-child{border-bottom:none}
+.ev-card{background:linear-gradient(135deg,var(--card),var(--card2));border:1px solid var(--border);border-radius:10px;padding:13px;margin-bottom:10px}
+.ev-card.done{border-color:rgba(77,255,138,.4);background:linear-gradient(135deg,#0a2010,#0f2a15)}
+.ev-controls{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.btn{font-family:'Cinzel',serif;font-size:10px;letter-spacing:.5px;font-weight:600;padding:7px 12px;border-radius:6px;cursor:pointer;border:1px solid;transition:all .15s;line-height:1}
+.btn-gold{color:var(--gold2);border-color:var(--gold3);background:#1a0c00}.btn-gold:hover{background:#2a1500;border-color:var(--gold)}
+.btn-muted{color:var(--muted);border-color:var(--border);background:#0a0500}.btn-muted:hover{color:var(--text)}
+.btn-full{width:100%;display:block;text-align:center}.btn-sm{padding:4px 8px;font-size:9px}.btn-xs{padding:3px 7px;font-size:9px}
+.btn-del{background:none;border:none;color:#7a2010;cursor:pointer;font-size:18px;padding:0 3px;line-height:1}
+.inp{width:100%;background:#050300;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:8px 10px;font-size:12px;font-family:'Crimson Text',serif;display:block;margin-bottom:8px}
+.inp:focus{outline:none;border-color:var(--gold3)}.inp::placeholder{color:var(--muted2)}
+select.inp{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236a5030'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+label.lbl{font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;display:block;margin-bottom:3px}
+textarea.inp{resize:vertical;min-height:54px}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:200;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay.open{opacity:1;pointer-events:auto}
+.modal{background:linear-gradient(160deg,#1a0d00,#0e0600);border:1px solid var(--gold3);border-radius:14px 14px 0 0;padding:20px;width:100%;max-width:500px;max-height:85vh;overflow-y:auto;transform:translateY(30px);transition:transform .25s;box-shadow:0 -6px 40px rgba(201,162,39,.15)}
+.overlay.open .modal{transform:none}
+.modal-title{font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:var(--gold2);margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+.sec-header{font-family:'Cinzel',serif;font-size:8px;letter-spacing:2px;padding:4px 0;margin:8px 0 5px;border-bottom:1px solid}
+.sec-gold{color:var(--gold);border-color:rgba(201,162,39,.2)}.sec-green{color:var(--green);border-color:rgba(77,255,138,.2)}.sec-muted{color:var(--muted);border-color:rgba(106,80,48,.15)}
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty .e-icon{font-size:42px;margin-bottom:10px}.empty .e-text{font-size:13px;font-family:'Cinzel',serif;letter-spacing:1px}.empty .e-sub{font-size:11px;color:var(--muted2);margin-top:4px}
+.sort-bar{display:flex;gap:6px;margin-bottom:10px;align-items:center}.sort-bar select{flex:1;margin-bottom:0}
+.arrow{font-size:10px;transition:transform .2s;display:inline-block}.arrow.open{transform:rotate(180deg)}
+.preset-grid{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.preset-btn{background:#0a0600;border:1px solid var(--border);color:var(--muted);border-radius:7px;padding:6px 9px;font-family:'Crimson Text',serif;font-size:11px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:4px}
+.preset-btn.sel{background:#261500;border-color:var(--gold3);color:var(--gold)}
+.dur-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.dur-chip{background:#0a0600;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 9px;font-family:'Cinzel',serif;font-size:9px;cursor:pointer;transition:all .15s}
+.dur-chip.sel{background:#1a0c00;border-color:var(--gold3);color:var(--gold2)}
+.rank{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-family:'Cinzel',serif;font-weight:700;flex-shrink:0}
+.rank-1{background:linear-gradient(135deg,#c9a227,#f0dc80);color:#000}.rank-2{background:linear-gradient(135deg,#8a8a8a,#ccc);color:#000}.rank-3{background:linear-gradient(135deg,#a05020,#d08040);color:#fff}.rank-n{background:var(--border);color:var(--muted)}
+.yang-row{display:flex;align-items:center;gap:5px;margin-top:5px}.yang-row input{width:80px;margin-bottom:0;font-size:11px;padding:3px 7px}
+.timer-big{font-size:22px;font-family:'Cinzel',serif;font-weight:700}
+.timer-big.ready{color:var(--green);text-shadow:0 0 14px rgba(77,255,138,.5)}.timer-big.active{color:var(--gold)}.timer-big.idle{color:var(--muted2)}
+@media(min-width:500px){body{border-left:1px solid var(--border2);border-right:1px solid var(--border2)}}
+</style>
+</head>
+<body>
+
+<div id="sync-bar">⟳ Sincronizando…</div>
+
+<div id="header">
+  <h1>⚔&nbsp; METIN2 TRACKER &nbsp;⚔</h1>
+  <div class="sub">ORGANIZADOR DEFINITIVO</div>
+  <div id="quick-stats">
+    <span id="qs-bio" class="qs-badge qs-bio"></span>
+    <span id="qs-buff" class="qs-badge qs-buff"></span>
+    <span id="qs-dung" class="qs-badge qs-dung"></span>
+  </div>
+</div>
+
+<div id="tabs">
+  <button class="tab-btn active" onclick="switchTab('cuentas')"><span class="t-icon">👤</span>CUENTAS</button>
+  <button class="tab-btn" onclick="switchTab('biolog')"><span class="t-icon" style="position:relative">⏱️<span id="badge-bio" class="tab-badge"></span></span>BIOLOG</button>
+  <button class="tab-btn" onclick="switchTab('mazmorras')"><span class="t-icon">🏰</span>MAZMORRAS</button>
+  <button class="tab-btn" onclick="switchTab('buffs')"><span class="t-icon" style="position:relative">✨<span id="badge-buff" class="tab-badge"></span></span>BUFFS</button>
+  <button class="tab-btn" onclick="switchTab('eventos')"><span class="t-icon">📅</span>EVENTOS</button>
+</div>
+
+<div id="content">
+  <div id="tab-cuentas" class="tab-panel active">
+    <div class="sort-bar">
+      <button class="btn btn-gold btn-full" onclick="openModal('modal-add-acc')">＋ Nueva Cuenta</button>
+      <select class="inp" style="flex:0 0 130px;margin-bottom:0;font-size:10px" onchange="renderCuentas()">
+        <option value="name">↓ Nombre</option><option value="level">↓ Nivel máx</option><option value="yang">↓ Yang total</option>
+      </select>
+    </div>
+    <div id="cuentas-list"></div>
+  </div>
+  <div id="tab-biolog" class="tab-panel">
+    <div style="font-size:10px;color:var(--muted);text-align:center;margin-bottom:10px;font-family:'Cinzel',serif;letter-spacing:1px">Pulsa RESET cada vez que hagas el biolog</div>
+    <div id="biolog-list"></div>
+  </div>
+  <div id="tab-mazmorras" class="tab-panel">
+    <div style="display:flex;gap:12px;font-size:9px;color:var(--muted);margin-bottom:10px;justify-content:center;font-family:'Cinzel',serif">
+      <span style="color:var(--green)">▐ Diaria</span><span style="color:var(--blue)">▐ Semanal</span>
+    </div>
+    <div id="mazmorras-list"></div>
+  </div>
+  <div id="tab-buffs" class="tab-panel"><div id="buffs-list"></div></div>
+  <div id="tab-eventos" class="tab-panel">
+    <button class="btn btn-gold btn-full" style="margin-bottom:12px" onclick="openModal('modal-add-evento')">📅 Añadir Evento de Temporada</button>
+    <div id="eventos-list"></div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div id="modal-add-acc" class="overlay"><div class="modal">
+  <div class="modal-title">➕ Nueva Cuenta<button class="btn-del" onclick="closeModal('modal-add-acc')">✕</button></div>
+  <label class="lbl">Nombre de la cuenta</label>
+  <input id="acc-name" class="inp" placeholder="ej: Main, Alt, Farm…" onkeydown="if(event.key==='Enter')saveAccount()"/>
+  <button class="btn btn-gold btn-full" onclick="saveAccount()">Crear Cuenta</button>
+</div></div>
+
+<div id="modal-add-char" class="overlay"><div class="modal">
+  <div class="modal-title">⚔ Nuevo Personaje<button class="btn-del" onclick="closeModal('modal-add-char')">✕</button></div>
+  <input type="hidden" id="char-aid"/>
+  <label class="lbl">Nombre del personaje</label>
+  <input id="char-name" class="inp" placeholder="Nombre…" onkeydown="if(event.key==='Enter')saveChar()"/>
+  <div style="display:flex;gap:8px">
+    <div style="flex:1"><label class="lbl">Nivel</label><input id="char-level" class="inp" type="number" min="1" max="120" value="1"/></div>
+    <div style="flex:2"><label class="lbl">Clase</label>
+      <select id="char-class" class="inp">
+        <option>⚔️ Guerrero</option><option>🗡️ Ninja</option><option>🔮 Shamán</option><option>👹 Sura</option><option>🐺 Lycan</option>
+      </select>
+    </div>
+  </div>
+  <label class="lbl">Reino</label>
+  <select id="char-kingdom" class="inp"><option>Shinsoo</option><option>Chunjo</option><option>Jinno</option></select>
+  <button class="btn btn-gold btn-full" onclick="saveChar()">Añadir Personaje</button>
+</div></div>
+
+<div id="modal-add-buff" class="overlay"><div class="modal">
+  <div class="modal-title">✨ Añadir Buff<button class="btn-del" onclick="closeModal('modal-add-buff')">✕</button></div>
+  <input type="hidden" id="buff-aid"/><input type="hidden" id="buff-cid"/>
+  <div style="font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;margin-bottom:6px">PRESETS RÁPIDOS</div>
+  <div class="preset-grid" id="buff-presets"></div>
+  <div id="buff-custom" style="display:none">
+    <div style="display:flex;gap:6px">
+      <input id="buff-icon" class="inp" style="width:55px;text-align:center" placeholder="✨"/>
+      <input id="buff-name-inp" class="inp" placeholder="Nombre del buff…"/>
+    </div>
+  </div>
+  <button id="btn-custom-buff" class="btn btn-muted btn-xs" style="margin-bottom:10px" onclick="toggleCustomBuff()">Personalizado…</button>
+  <div style="font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;margin-bottom:6px">DURACIÓN</div>
+  <div class="dur-chips" id="dur-chips"></div>
+  <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px">
+    <input id="buff-mins" class="inp" type="number" min="1" style="flex:1;margin-bottom:0" placeholder="Minutos…"/>
+    <span style="font-size:10px;color:var(--muted)">min</span>
+  </div>
+  <button class="btn btn-gold btn-full" onclick="saveBuff()">Activar Buff</button>
+</div></div>
+
+<div id="modal-add-evento" class="overlay"><div class="modal">
+  <div class="modal-title">📅 Nuevo Evento<button class="btn-del" onclick="closeModal('modal-add-evento')">✕</button></div>
+  <label class="lbl">Nombre del evento</label>
+  <input id="ev-name" class="inp" placeholder="ej: Evento Halloween…"/>
+  <label class="lbl">Fecha fin del evento</label>
+  <input id="ev-end" class="inp" type="datetime-local" style="color-scheme:dark"/>
+  <div style="display:flex;gap:8px">
+    <div style="flex:1"><label class="lbl">Meta</label><input id="ev-goal" class="inp" type="number" value="100" min="1"/></div>
+    <div style="flex:1"><label class="lbl">Unidad</label><input id="ev-unit" class="inp" placeholder="puntos…" value="puntos"/></div>
+  </div>
+  <label class="lbl">Notas</label>
+  <textarea id="ev-notes" class="inp" placeholder="Opcional…"></textarea>
+  <button class="btn btn-gold btn-full" onclick="saveEvento()">Guardar Evento</button>
+</div></div>
+
+<script>
+/* ══ SUPABASE ══ */
+const SUPA_URL = 'https://lkzqjvoxmjajtrrwneuw.supabase.co';
+const SUPA_KEY = 'sb_publishable_Ucv0UMTJ4J-FjNE6DoqgrQ_lsJNPMVH';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+const SYNC_ID = 'mario_metin2';
+
+let syncTimer=null;
+function showSync(state,msg){
+  const bar=document.getElementById('sync-bar');
+  bar.className=state;bar.textContent=msg;
+  clearTimeout(syncTimer);
+  if(state==='ok')syncTimer=setTimeout(()=>{bar.className='';bar.style.display='none'},2500);
+}
+
+async function pushToSupabase(){
+  showSync('syncing','⟳ Guardando en la nube…');
+  try{
+    await sb.from('m2_accounts').upsert({id:SYNC_ID,data:accounts,updated_at:new Date().toISOString()});
+    await sb.from('m2_events').upsert({id:SYNC_ID,data:events,updated_at:new Date().toISOString()});
+    showSync('ok','✓ Sincronizado en todos tus dispositivos');
+  }catch(e){showSync('err','✕ Sin conexión — datos guardados localmente');console.error(e)}
+}
+
+async function pullFromSupabase(){
+  showSync('syncing','⟳ Cargando desde la nube…');
+  try{
+    const {data:accRow}=await sb.from('m2_accounts').select('data').eq('id',SYNC_ID).single();
+    const {data:evRow}=await sb.from('m2_events').select('data').eq('id',SYNC_ID).single();
+    if(accRow?.data)accounts=accRow.data;
+    if(evRow?.data)events=evRow.data;
+    localStorage.setItem('m2_acc',JSON.stringify(accounts));
+    localStorage.setItem('m2_ev',JSON.stringify(events));
+    showSync('ok','✓ Datos cargados');render();
+  }catch(e){
+    const la=localStorage.getItem('m2_acc');const le=localStorage.getItem('m2_ev');
+    if(la)accounts=JSON.parse(la);if(le)events=JSON.parse(le);
+    showSync('err','⚠️ Sin conexión — usando datos locales');render();
+  }
+}
+
+let pushDebounce=null;
+function save(){
+  localStorage.setItem('m2_acc',JSON.stringify(accounts));
+  localStorage.setItem('m2_ev',JSON.stringify(events));
+  clearTimeout(pushDebounce);
+  pushDebounce=setTimeout(pushToSupabase,1200);
+}
+
+/* ══ STATE ══ */
+let accounts=[];let events=[];
+const uid=()=>Math.random().toString(36).slice(2,9);
+const now=()=>Date.now();
+const pad=n=>String(n).padStart(2,'0');
+const BIOLOG_DUR=24*3600*1000;
+const DUNGEONS=[
+  {id:'arana',name:'Araña',icon:'🕷️',reset:'daily'},{id:'orc',name:'Orcos',icon:'👹',reset:'daily'},
+  {id:'drag_b',name:'Dr.Azul',icon:'🐲',reset:'daily'},{id:'hydra',name:'Hydra',icon:'🐍',reset:'daily'},
+  {id:'muerte',name:'T.Muerte',icon:'💀',reset:'daily'},{id:'bicho',name:'Bicho',icon:'🐛',reset:'daily'},
+  {id:'drag_g',name:'Dr.Verde',icon:'🌿',reset:'weekly'},{id:'nemere',name:'Nemere',icon:'❄️',reset:'weekly'},
+  {id:'razador',name:'Razador',icon:'🔥',reset:'weekly'},{id:'balroc',name:'Balroc',icon:'👿',reset:'weekly'},
+];
+const BUFF_PRESETS=[
+  {id:'xp',name:'EXP +',icon:'⭐',mins:60},{id:'drop',name:'Drop +',icon:'💎',mins:60},
+  {id:'yang',name:'Yang +',icon:'💰',mins:60},{id:'bless',name:'Bless',icon:'🙏',mins:30},
+  {id:'soma',name:'Soma',icon:'🧪',mins:60},{id:'prem',name:'Premium',icon:'👑',mins:1440},
+  {id:'mall',name:'Mall EXP',icon:'🏪',mins:1440},{id:'atma',name:'Atma',icon:'🔶',mins:60},
+];
+const DUR_CHIPS=[{l:'15m',v:15},{l:'30m',v:30},{l:'1h',v:60},{l:'2h',v:120},{l:'4h',v:240},{l:'8h',v:480},{l:'24h',v:1440}];
+const CLASS_ICON={'Guerrero':'⚔️','Ninja':'🗡️','Shamán':'🔮','Sura':'👹','Lycan':'🐺'};
+const todayMs=()=>{const d=new Date();d.setHours(0,0,0,0);return d.getTime()};
+const weekMs=()=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-d.getDay());return d.getTime()};
+function fmtTime(ms){if(ms<=0)return'LISTO';const s=Math.floor(ms/1000);const h=Math.floor(s/3600);const m=Math.floor((s%3600)/60);const sc=s%60;return h>0?`${h}h ${pad(m)}m ${pad(sc)}s`:`${pad(m)}m ${pad(sc)}s`}
+function classLabel(f){return f?f.replace(/^[^ ]+ /,''):'Guerrero'}
+function allChars(){return accounts.flatMap(a=>a.chars.map(c=>({...c,aid:a.id,accName:a.name})))}
+function isDungDone(c,d){const t=(c.dungeons||{})[d.id];if(!t)return false;return d.reset==='weekly'?t>=weekMs():t>=todayMs()}
+function patchChar(aid,cid,patch){accounts=accounts.map(a=>a.id!==aid?a:{...a,chars:a.chars.map(c=>c.id!==cid?c:{...c,...patch})});save();render()}
+
+/* ══ TABS ══ */
+let currentTab='cuentas';
+function switchTab(t){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b=>{if(b.getAttribute('onclick')===`switchTab('${t}')`)b.classList.add('active')});
+  currentTab=t;render();
+}
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+
+/* ══ RENDER ══ */
+function render(){
+  updateQuickStats();
+  if(currentTab==='cuentas')renderCuentas();
+  if(currentTab==='biolog')renderBiolog();
+  if(currentTab==='mazmorras')renderMazmorras();
+  if(currentTab==='buffs')renderBuffs();
+  if(currentTab==='eventos')renderEventos();
+}
+function updateQuickStats(){
+  const chars=allChars();
+  const bioReady=chars.filter(c=>c.biolog&&(c.biolog+BIOLOG_DUR)<=now()).length;
+  const activeBuffs=chars.reduce((s,c)=>s+(c.buffs||[]).filter(b=>b.expiresAt>now()).length,0);
+  const dungDone=chars.reduce((s,c)=>s+DUNGEONS.filter(d=>isDungDone(c,d)).length,0);
+  const dungTotal=chars.length*DUNGEONS.length;
+  const eb=document.getElementById('qs-bio');eb.className='qs-badge qs-bio'+(bioReady>0?' show':'');eb.textContent=`🟢 ${bioReady} biolog listos`;
+  const ef=document.getElementById('qs-buff');ef.className='qs-badge qs-buff'+(activeBuffs>0?' show':'');ef.textContent=`✨ ${activeBuffs} buffs`;
+  const ed=document.getElementById('qs-dung');ed.className='qs-badge qs-dung'+(dungTotal>0?' show':'');ed.textContent=`🏰 ${dungDone}/${dungTotal}`;
+  const bb=document.getElementById('badge-bio');bb.className='tab-badge'+(bioReady>0?' show':'');bb.textContent=bioReady;
+  const bbu=document.getElementById('badge-buff');bbu.className='tab-badge'+(activeBuffs>0?' show':'');bbu.textContent=activeBuffs;
+}
+
+/* ══ CUENTAS ══ */
+let collapsed={};
+function renderCuentas(){
+  const sortSel=document.querySelector('#tab-cuentas select');const sort=sortSel?sortSel.value:'name';
+  const sorted=[...accounts].sort((a,b)=>{
+    if(sort==='level'){const ma=Math.max(0,...a.chars.map(c=>c.level||1));const mb=Math.max(0,...b.chars.map(c=>c.level||1));return mb-ma}
+    if(sort==='yang'){return b.chars.reduce((s,c)=>s+(c.yang||0),0)-a.chars.reduce((s,c)=>s+(c.yang||0),0)}
+    return a.name.localeCompare(b.name);
+  });
+  const el=document.getElementById('cuentas-list');
+  if(!accounts.length){el.innerHTML=`<div class="empty"><div class="e-icon">👤</div><div class="e-text">Sin cuentas</div><div class="e-sub">Pulsa "+ Nueva Cuenta" para empezar</div></div>`;return}
+  el.innerHTML=sorted.map((acc,ri)=>{
+    const open=!collapsed[acc.id];
+    const totalYang=acc.chars.reduce((s,c)=>s+(c.yang||0),0);
+    const bReady=acc.chars.filter(c=>c.biolog&&(c.biolog+BIOLOG_DUR)<=now()).length;
+    const maxLv=acc.chars.length?Math.max(...acc.chars.map(c=>c.level||1)):0;
+    return `<div class="card ${bReady>0?'ready':''}">
+      <div class="card-header" onclick="toggleCollapse('${acc.id}')">
+        <div style="display:flex;align-items:center;gap:9px">
+          <div class="rank rank-${ri<3?ri+1:'n'}">${ri+1}</div>
+          <div>
+            <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:var(--gold2)">${acc.name}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:1px">${acc.chars.length} pers · Lv.${maxLv} · ${totalYang.toLocaleString()}💰${bReady>0?`<span style="color:var(--green);margin-left:5px">· ${bReady} bio ✓</span>`:''}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="arrow ${open?'open':''}">▼</span>
+          <button class="btn-del" onclick="event.stopPropagation();delAccount('${acc.id}')">✕</button>
+        </div>
+      </div>
+      ${open?`<div class="card-body">
+        ${acc.chars.length===0?`<div style="color:var(--muted2);font-size:11px;text-align:center;padding:6px">Sin personajes</div>`:''}
+        ${acc.chars.map(c=>charRowHTML(acc.id,c)).join('')}
+        <button class="btn btn-muted btn-full" style="margin-top:4px;font-size:10px" onclick="openAddChar('${acc.id}')">＋ Añadir Personaje</button>
+      </div>`:''}
+    </div>`;
+  }).join('');
+}
+function charRowHTML(aid,c){
+  const left=c.biolog?(c.biolog+BIOLOG_DUR)-now():null;const ready=left!==null&&left<=0;
+  const kc=`tag-${(c.kingdom||'Shinsoo').toLowerCase()}`;
+  return `<div class="char-row ${ready?'bio-ready':''}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <span style="font-size:15px;vertical-align:middle">${CLASS_ICON[classLabel(c.class)]||'⚔️'}</span>
+        <span class="char-name">${c.name}</span>
+        <span class="tag tag-level">Nv.${c.level||1}</span>
+        <span class="tag ${kc}">${c.kingdom||'Shinsoo'}</span>
+      </div>
+      <button class="btn-del" onclick="delChar('${aid}','${c.id}')">✕</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:7px;margin-top:6px;flex-wrap:wrap">
+      <span style="font-size:10px;color:var(--muted)">⏱ Biolog:</span>
+      ${left===null?`<span style="font-size:10px;color:var(--muted2)">—</span>`:ready?`<span style="font-size:10px;color:var(--green);font-weight:700">✓ LISTO</span>`:`<span style="font-size:10px;color:var(--gold)">${fmtTime(left)}</span>`}
+      <button class="btn btn-gold btn-xs" onclick="resetBiolog('${aid}','${c.id}')">Reset</button>
+      ${c.biolog?`<button class="btn btn-muted btn-xs" onclick="clearBiolog('${aid}','${c.id}')">✕ limpiar</button>`:''}
+    </div>
+    <div class="yang-row">
+      <span style="font-size:10px;color:var(--muted)">💰</span>
+      <input class="inp" type="number" value="${c.yang||0}" onchange="patchChar('${aid}','${c.id}',{yang:parseInt(this.value)||0})" style="width:90px;margin-bottom:0;padding:3px 7px;font-size:11px"/>
+      <span style="font-size:10px;color:var(--muted)">yang</span>
+    </div>
+    <input class="inp" placeholder="Notas…" value="${(c.notes||'').replace(/"/g,'&quot;')}" onchange="patchChar('${aid}','${c.id}',{notes:this.value})" style="margin-top:5px;margin-bottom:0;padding:3px 8px;font-size:10px;color:var(--muted)"/>
+  </div>`;
+}
+function toggleCollapse(id){collapsed[id]=!collapsed[id];renderCuentas()}
+function saveAccount(){const name=document.getElementById('acc-name').value.trim();if(!name)return;accounts.push({id:uid(),name,chars:[]});save();closeModal('modal-add-acc');document.getElementById('acc-name').value='';render()}
+function delAccount(id){if(!confirm('¿Eliminar cuenta?'))return;accounts=accounts.filter(a=>a.id!==id);save();render()}
+function openAddChar(aid){document.getElementById('char-aid').value=aid;openModal('modal-add-char')}
+function saveChar(){
+  const aid=document.getElementById('char-aid').value;const name=document.getElementById('char-name').value.trim();if(!name)return;
+  const acc=accounts.find(a=>a.id===aid);if(!acc)return;
+  acc.chars.push({id:uid(),name,level:parseInt(document.getElementById('char-level').value)||1,class:document.getElementById('char-class').value,kingdom:document.getElementById('char-kingdom').value,biolog:null,dungeons:{},buffs:[],yang:0,notes:''});
+  save();closeModal('modal-add-char');document.getElementById('char-name').value='';render();
+}
+function delChar(aid,cid){accounts=accounts.map(a=>a.id!==aid?a:{...a,chars:a.chars.filter(c=>c.id!==cid)});save();render()}
+
+/* ══ BIOLOG ══ */
+function resetBiolog(aid,cid){patchChar(aid,cid,{biolog:now()})}
+function clearBiolog(aid,cid){patchChar(aid,cid,{biolog:null})}
+function renderBiolog(){
+  const chars=allChars();
+  if(!chars.length){document.getElementById('biolog-list').innerHTML=`<div class="empty"><div class="e-icon">⏱️</div><div class="e-text">Sin personajes</div></div>`;return}
+  const byState=c=>{const l=c.biolog?(c.biolog+BIOLOG_DUR)-now():null;if(l===null)return 2;return l<=0?0:1};
+  const sorted=[...chars].sort((a,b)=>{const sa=byState(a),sb=byState(b);if(sa!==sb)return sa-sb;const al=a.biolog?(a.biolog+BIOLOG_DUR)-now():Infinity;const bl=b.biolog?(b.biolog+BIOLOG_DUR)-now():Infinity;return al-bl});
+  const ready=sorted.filter(c=>byState(c)===0);const active=sorted.filter(c=>byState(c)===1);const idle=sorted.filter(c=>byState(c)===2);
+  let html='';
+  if(ready.length)html+=`<div class="sec-header sec-green">✅ LISTOS — ${ready.length}</div>${ready.map(c=>bilogCard(c,0)).join('')}`;
+  if(active.length)html+=`<div class="sec-header sec-gold">⏳ EN COOLDOWN — ${active.length}</div>${active.map(c=>bilogCard(c,1)).join('')}`;
+  if(idle.length)html+=`<div class="sec-header sec-muted">— SIN RASTREAR — ${idle.length}</div>${idle.map(c=>bilogCard(c,2)).join('')}`;
+  document.getElementById('biolog-list').innerHTML=html;
+}
+function bilogCard(c,state){
+  const left=c.biolog?(c.biolog+BIOLOG_DUR)-now():null;const ready=state===0;
+  const pct=c.biolog&&left>0?Math.max(0,(1-left/BIOLOG_DUR)*100):(ready?100:0);
+  return `<div class="card ${ready?'ready':''}">
+    <div style="padding:12px 14px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="display:flex;align-items:center;gap:7px">
+          <span style="font-size:16px">${CLASS_ICON[classLabel(c.class)]||'⚔️'}</span>
+          <span style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:${ready?'var(--green)':'var(--text)'}">${c.name}</span>
+          <span style="font-size:9px;background:#0a0500;color:var(--muted);padding:1px 5px;border-radius:3px;font-family:'Cinzel',serif">${c.accName}</span>
+        </div>
+        <div class="timer-big ${ready?'ready':left===null?'idle':'active'}" style="margin-top:6px">
+          ${left===null?'<span style="font-size:12px">Sin rastrear — pulsa Reset</span>':ready?'✓ BIOLOG LISTO':fmtTime(left)}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
+        <button class="btn btn-gold btn-sm" onclick="resetBiolog('${c.aid}','${c.id}')">Reset</button>
+        ${c.biolog?`<button class="btn btn-muted btn-xs" onclick="clearBiolog('${c.aid}','${c.id}')">✕ limpiar</button>`:''}
+      </div>
+    </div>
+    ${c.biolog?`<div style="padding:0 14px 10px"><div style="height:6px;background:#0a0500;border-radius:3px;overflow:hidden;border:1px solid var(--border2)"><div class="pbar ${ready?'pbar-green':'pbar-gold'}" style="width:${pct}%"></div></div></div>`:''}
+  </div>`;
+}
+
+/* ══ MAZMORRAS ══ */
+function toggleDung(aid,cid,did){
+  accounts=accounts.map(a=>{if(a.id!==aid)return a;return{...a,chars:a.chars.map(c=>{if(c.id!==cid)return c;const done=(c.dungeons||{})[did];return{...c,dungeons:{...c.dungeons,[did]:done?null:now()}}})};});
+  save();render();
+}
+function renderMazmorras(){
+  const chars=allChars();
+  if(!chars.length){document.getElementById('mazmorras-list').innerHTML=`<div class="empty"><div class="e-icon">🏰</div><div class="e-text">Sin personajes</div></div>`;return}
+  document.getElementById('mazmorras-list').innerHTML=chars.map(c=>{
+    const done=DUNGEONS.filter(d=>isDungDone(c,d)).length;const pct=Math.round(done/DUNGEONS.length*100);const allDone=done===DUNGEONS.length;
+    return `<div class="card ${allDone?'ready':''}">
+      <div style="padding:9px 12px;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;align-items:center;gap:7px">
+          <span style="font-size:15px">${CLASS_ICON[classLabel(c.class)]||'⚔️'}</span>
+          <span style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:var(--gold2)">${c.name}</span>
+          <span style="font-size:9px;color:var(--muted)">${c.accName} · Lv.${c.level}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:7px">
+          <div style="height:4px;width:44px;background:#0a0500;border-radius:2px;overflow:hidden"><div class="pbar ${allDone?'pbar-green':'pbar-gold'}" style="width:${pct}%"></div></div>
+          <span style="font-size:10px;color:${allDone?'var(--green)':'var(--muted)'};font-family:'Cinzel',serif">${done}/${DUNGEONS.length}</span>
+        </div>
+      </div>
+      <div style="padding:9px 10px"><div class="dung-grid">
+        ${DUNGEONS.map(d=>{const dn=isDungDone(c,d);const wkly=d.reset==='weekly';
+          return `<button class="dung-btn ${dn?(wkly?'done-weekly':'done-daily'):''}" onclick="toggleDung('${c.aid}','${c.id}','${d.id}')">
+            <span class="d-icon">${d.icon}</span><span class="d-name">${d.name}</span><span class="d-reset">${wkly?'SEM':'DIA'}</span>
+          </button>`;}).join('')}
+      </div></div>
+    </div>`;
+  }).join('');
+}
+
+/* ══ BUFFS ══ */
+let buffPresetSel=null;let buffCustomOpen=false;
+function initBuffModal(){
+  document.getElementById('buff-presets').innerHTML=BUFF_PRESETS.map(p=>`<div class="preset-btn" id="bp-${p.id}" onclick="selPreset('${p.id}')">${p.icon} ${p.name}</div>`).join('');
+  document.getElementById('dur-chips').innerHTML=DUR_CHIPS.map(d=>`<div class="dur-chip" id="dc-${d.v}" onclick="selDur(${d.v})">${d.l}</div>`).join('');
+  selDur(60);
+}
+function openAddBuff(aid,cid){document.getElementById('buff-aid').value=aid;document.getElementById('buff-cid').value=cid;buffPresetSel=null;buffCustomOpen=false;document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('sel'));document.getElementById('buff-custom').style.display='none';document.getElementById('btn-custom-buff').textContent='Personalizado…';openModal('modal-add-buff')}
+function selPreset(id){buffPresetSel=BUFF_PRESETS.find(p=>p.id===id);document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('sel'));document.getElementById('bp-'+id)?.classList.add('sel');selDur(buffPresetSel.mins)}
+function selDur(v){document.querySelectorAll('.dur-chip').forEach(c=>c.classList.remove('sel'));document.getElementById('dc-'+v)?.classList.add('sel');document.getElementById('buff-mins').value=v}
+function toggleCustomBuff(){buffCustomOpen=!buffCustomOpen;document.getElementById('buff-custom').style.display=buffCustomOpen?'block':'none';document.getElementById('btn-custom-buff').textContent=buffCustomOpen?'← Usar presets':'Personalizado…';if(buffCustomOpen){buffPresetSel=null;document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('sel'))}}
+function saveBuff(){
+  const aid=document.getElementById('buff-aid').value;const cid=document.getElementById('buff-cid').value;
+  const mins=parseInt(document.getElementById('buff-mins').value)||60;
+  let name,icon;
+  if(buffPresetSel){name=buffPresetSel.name;icon=buffPresetSel.icon}else{name=document.getElementById('buff-name-inp').value.trim();icon=document.getElementById('buff-icon').value.trim()||'✨'}
+  if(!name)return;const totalMs=mins*60*1000;
+  accounts=accounts.map(a=>a.id!==aid?a:{...a,chars:a.chars.map(c=>c.id!==cid?c:{...c,buffs:[...(c.buffs||[]),{id:uid(),name,icon,expiresAt:now()+totalMs,totalMs}]})});
+  save();closeModal('modal-add-buff');render();
+}
+function delBuff(aid,cid,bid){accounts=accounts.map(a=>a.id!==aid?a:{...a,chars:a.chars.map(c=>c.id!==cid?c:{...c,buffs:(c.buffs||[]).filter(b=>b.id!==bid)})});save();render()}
+function renderBuffs(){
+  const chars=allChars();
+  if(!chars.length){document.getElementById('buffs-list').innerHTML=`<div class="empty"><div class="e-icon">✨</div><div class="e-text">Sin personajes</div></div>`;return}
+  document.getElementById('buffs-list').innerHTML=chars.map(c=>{
+    const buffs=c.buffs||[];const active=buffs.filter(b=>b.expiresAt>now());
+    return `<div class="card ${active.length?'gold-border':''}">
+      <div style="padding:9px 12px;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;align-items:center;gap:7px">
+          <span style="font-size:15px">${CLASS_ICON[classLabel(c.class)]||'⚔️'}</span>
+          <span style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:var(--gold2)">${c.name}</span>
+          <span style="font-size:9px;color:var(--muted)">${c.accName}</span>
+          ${active.length?`<span style="font-size:9px;background:#1a0c00;color:var(--gold);padding:1px 6px;border-radius:10px;font-family:'Cinzel',serif">${active.length} activos</span>`:''}
+        </div>
+        <button class="btn btn-gold btn-xs" onclick="openAddBuff('${c.aid}','${c.id}')">＋ Buff</button>
+      </div>
+      <div style="padding:4px 12px">
+        ${buffs.length===0?`<div style="font-size:11px;color:var(--muted2);text-align:center;padding:10px">Sin buffs</div>`:''}
+        ${buffs.map(b=>{const left=b.expiresAt-now();const exp=left<=0;const pct=exp?0:Math.min(100,(left/b.totalMs)*100);
+          return `<div class="buff-row" style="opacity:${exp?0.4:1}">
+            <span style="font-size:20px;flex-shrink:0">${b.icon}</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;justify-content:space-between"><span style="font-size:12px;font-weight:600">${b.name}</span><span style="font-size:11px;color:${exp?'var(--red)':'var(--gold)'}">${exp?'Expirado':fmtTime(left)}</span></div>
+              ${!exp?`<div class="pbar-wrap"><div class="pbar pbar-gold" style="width:${pct}%"></div></div>`:''}
+            </div>
+            <button class="btn-del" onclick="delBuff('${c.aid}','${c.id}','${b.id}')">✕</button>
+          </div>`;}).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ══ EVENTOS ══ */
+function saveEvento(){
+  const name=document.getElementById('ev-name').value.trim();if(!name)return;
+  const endRaw=document.getElementById('ev-end').value;
+  events.push({id:uid(),name,endDate:endRaw?new Date(endRaw).getTime():null,goal:parseInt(document.getElementById('ev-goal').value)||100,progress:0,unit:document.getElementById('ev-unit').value||'puntos',notes:document.getElementById('ev-notes').value,createdAt:now()});
+  save();closeModal('modal-add-evento');['ev-name','ev-end','ev-notes'].forEach(i=>document.getElementById(i).value='');document.getElementById('ev-goal').value=100;document.getElementById('ev-unit').value='puntos';render();
+}
+function delEvento(id){if(!confirm('¿Eliminar evento?'))return;events=events.filter(e=>e.id!==id);save();render()}
+function updEvento(id,delta){events=events.map(e=>{if(e.id!==id)return e;return{...e,progress:Math.max(0,Math.min(e.goal,(e.progress||0)+delta))}}); save();render()}
+function setEvento(id,val){events=events.map(e=>{if(e.id!==id)return e;return{...e,progress:Math.max(0,Math.min(e.goal,parseInt(val)||0))}});save();render()}
+function renderEventos(){
+  if(!events.length){document.getElementById('eventos-list').innerHTML=`<div class="empty"><div class="e-icon">📅</div><div class="e-text">Sin eventos activos</div><div class="e-sub">Añade eventos de temporada para trackear tu progreso</div></div>`;return}
+  document.getElementById('eventos-list').innerHTML=events.map(ev=>{
+    const pct=ev.goal>0?Math.min(100,((ev.progress||0)/ev.goal)*100):0;
+    const timeLeft=ev.endDate?ev.endDate-now():null;const done=pct>=100;const expired=timeLeft!==null&&timeLeft<=0;const urgent=timeLeft&&timeLeft>0&&timeLeft<3600000*24;
+    return `<div class="ev-card ${done?'done':''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="flex:1">
+          <div style="font-family:'Cinzel',serif;font-weight:700;font-size:14px;color:${done?'var(--green)':'var(--gold2)'}">${done?'✓ ':''}${ev.name}</div>
+          ${timeLeft!==null?`<div style="font-size:10px;color:${expired?'var(--red)':urgent?'#ff9a40':'var(--muted)'};margin-top:2px">${expired?'⚠️ EVENTO TERMINADO':urgent?`⚠️ Termina en ${fmtTime(timeLeft)}`:`⏰ Termina en ${fmtTime(timeLeft)}`}</div>`:''}
+        </div>
+        <button class="btn-del" onclick="delEvento('${ev.id}')">✕</button>
+      </div>
+      <div style="margin-top:10px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">
+          <span style="color:var(--muted);font-family:'Cinzel',serif;letter-spacing:.5px">PROGRESO</span>
+          <span style="color:var(--gold)">${(ev.progress||0).toLocaleString()} / ${ev.goal.toLocaleString()} ${ev.unit} · ${pct.toFixed(1)}%</span>
+        </div>
+        <div style="height:12px;background:#0a0500;border-radius:6px;overflow:hidden;border:1px solid var(--border2)">
+          <div class="pbar ${done?'pbar-green':'pbar-gold'}" style="width:${pct}%;height:100%;box-shadow:${done?'0 0 8px var(--green)':'0 0 6px var(--gold)'}"></div>
+        </div>
+        <div class="ev-controls">
+          <button class="btn btn-muted btn-sm" onclick="updEvento('${ev.id}',-1)">−1</button>
+          <input class="inp" type="number" value="${ev.progress||0}" onchange="setEvento('${ev.id}',this.value)" style="flex:1;min-width:60px;text-align:center;margin-bottom:0;padding:5px 8px;font-size:12px"/>
+          <button class="btn btn-gold btn-sm" onclick="updEvento('${ev.id}',1)">＋1</button>
+          <button class="btn btn-muted btn-sm" onclick="updEvento('${ev.id}',10)">＋10</button>
+          <button class="btn btn-muted btn-sm" onclick="updEvento('${ev.id}',100)">＋100</button>
+        </div>
+      </div>
+      ${ev.notes?`<div style="font-size:10px;color:var(--muted);margin-top:9px;font-style:italic;border-top:1px solid var(--border2);padding-top:7px">${ev.notes}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+/* ══ INIT ══ */
+initBuffModal();
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open')}));
+pullFromSupabase();
+setInterval(render,1000);
+</script>
+</body>
+</html>
