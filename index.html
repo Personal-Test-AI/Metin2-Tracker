@@ -367,7 +367,7 @@ function renderCuentas(){
   const el=document.getElementById('cuentas-list');
   if(!accounts.length){el.innerHTML=`<div class="empty"><div class="e-icon">👤</div><div class="e-text">Sin cuentas</div><div class="e-sub">Pulsa "+ Nueva Cuenta" para empezar</div></div>`;return}
   el.innerHTML=accounts.map((acc)=>{
-    const open=!collapsed[acc.id];
+    const open=collapsed[acc.id]===true;
     return `<div class="card">
       <div class="card-header" onclick="toggleCollapse('${acc.id}')">
         <div style="display:flex;align-items:center;gap:9px">
