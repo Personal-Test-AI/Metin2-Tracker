@@ -274,7 +274,22 @@ let accounts=[];let events=[];
 const uid=()=>Math.random().toString(36).slice(2,9);
 const now=()=>Date.now();
 const pad=n=>String(n).padStart(2,'0');
-const BIOLOG_DUR=24*3600*1000;
+// Biolog cooldown según nivel (fuente: ro-wiki.metin2.gameforge.com)
+// Lv 92+  → Seon-Pyeong: 12h
+// Lv 30-91 → Biologul 1-8: 22h
+// Lv <30  → sin biolog
+function biologDur(level){
+  const lv=parseInt(level)||1;
+  if(lv>=92) return 12*3600*1000;
+  if(lv>=30) return 22*3600*1000;
+  return 0; // sin biolog disponible
+}
+function biologLabel(level){
+  const lv=parseInt(level)||1;
+  if(lv>=92) return 'Seon-Pyeong (12h)';
+  if(lv>=30) return `Biologul ${Math.min(8,Math.floor((lv-30)/10)+1)} (22h)`;
+  return 'Sin biolog (Lv<30)';
+}
 const DUNGEONS=[
   {id:'arana',name:'Araña',icon:'🕷️',reset:'daily'},{id:'orc',name:'Orcos',icon:'👹',reset:'daily'},
   {id:'drag_b',name:'Dr.Azul',icon:'🐲',reset:'daily'},{id:'hydra',name:'Hydra',icon:'🐍',reset:'daily'},
@@ -297,6 +312,7 @@ function classLabel(f){return f?f.replace(/^[^ ]+ /,''):'Guerrero'}
 function allChars(){return accounts.flatMap(a=>a.chars.map(c=>({...c,aid:a.id,accName:a.name})))}
 function isDungDone(c,d){const t=(c.dungeons||{})[d.id];if(!t)return false;return d.reset==='weekly'?t>=weekMs():t>=todayMs()}
 function patchChar(aid,cid,patch){accounts=accounts.map(a=>a.id!==aid?a:{...a,chars:a.chars.map(c=>c.id!==cid?c:{...c,...patch})});save();render()}
+function charBiologDur(c){return biologDur(c.level)}
 
 /* ══ TABS ══ */
 let currentTab='cuentas';
@@ -321,7 +337,7 @@ function render(){
 }
 function updateQuickStats(){
   const chars=allChars();
-  const bioReady=chars.filter(c=>c.biolog&&(c.biolog+BIOLOG_DUR)<=now()).length;
+  const bioReady=chars.filter(c=>{const dur=biologDur(c.level);return dur>0&&c.biolog&&(c.biolog+dur)<=now()}).length;
   const activeBuffs=chars.reduce((s,c)=>s+(c.buffs||[]).filter(b=>b.expiresAt>now()).length,0);
   const dungDone=chars.reduce((s,c)=>s+DUNGEONS.filter(d=>isDungDone(c,d)).length,0);
   const dungTotal=chars.length*DUNGEONS.length;
@@ -346,7 +362,7 @@ function renderCuentas(){
   el.innerHTML=sorted.map((acc,ri)=>{
     const open=!collapsed[acc.id];
     const totalYang=acc.chars.reduce((s,c)=>s+(c.yang||0),0);
-    const bReady=acc.chars.filter(c=>c.biolog&&(c.biolog+BIOLOG_DUR)<=now()).length;
+    const bReady=acc.chars.filter(c=>{const dur=biologDur(c.level);return dur>0&&c.biolog&&(c.biolog+dur)<=now()}).length;
     const maxLv=acc.chars.length?Math.max(...acc.chars.map(c=>c.level||1)):0;
     return `<div class="card ${bReady>0?'ready':''}">
       <div class="card-header" onclick="toggleCollapse('${acc.id}')">
@@ -371,7 +387,8 @@ function renderCuentas(){
   }).join('');
 }
 function charRowHTML(aid,c){
-  const left=c.biolog?(c.biolog+BIOLOG_DUR)-now():null;const ready=left!==null&&left<=0;
+  const dur=biologDur(c.level);const left=dur>0&&c.biolog?(c.biolog+dur)-now():null;const ready=left!==null&&left<=0;
+  const noAccess=dur===0;
   const kc=`tag-${(c.kingdom||'Shinsoo').toLowerCase()}`;
   return `<div class="char-row ${ready?'bio-ready':''}">
     <div style="display:flex;justify-content:space-between;align-items:flex-start">
@@ -384,10 +401,13 @@ function charRowHTML(aid,c){
       <button class="btn-del" onclick="delChar('${aid}','${c.id}')">✕</button>
     </div>
     <div style="display:flex;align-items:center;gap:7px;margin-top:6px;flex-wrap:wrap">
-      <span style="font-size:10px;color:var(--muted)">⏱ Biolog:</span>
-      ${left===null?`<span style="font-size:10px;color:var(--muted2)">—</span>`:ready?`<span style="font-size:10px;color:var(--green);font-weight:700">✓ LISTO</span>`:`<span style="font-size:10px;color:var(--gold)">${fmtTime(left)}</span>`}
-      <button class="btn btn-gold btn-xs" onclick="resetBiolog('${aid}','${c.id}')">Reset</button>
-      ${c.biolog?`<button class="btn btn-muted btn-xs" onclick="clearBiolog('${aid}','${c.id}')">✕ limpiar</button>`:''}
+      <span style="font-size:10px;color:var(--muted)">⏱ ${biologLabel(c.level)}:</span>
+      ${noAccess?`<span style="font-size:10px;color:var(--muted2)">No disponible</span>`
+        :left===null?`<span style="font-size:10px;color:var(--muted2)">—</span>`
+        :ready?`<span style="font-size:10px;color:var(--green);font-weight:700">✓ LISTO</span>`
+        :`<span style="font-size:10px;color:var(--gold)">${fmtTime(left)}</span>`}
+      ${!noAccess?`<button class="btn btn-gold btn-xs" onclick="resetBiolog('${aid}','${c.id}')">Reset</button>`:''}
+      ${!noAccess&&c.biolog?`<button class="btn btn-muted btn-xs" onclick="clearBiolog('${aid}','${c.id}')">✕ limpiar</button>`:''}
     </div>
     <div class="yang-row">
       <span style="font-size:10px;color:var(--muted)">💰</span>
@@ -415,8 +435,8 @@ function clearBiolog(aid,cid){patchChar(aid,cid,{biolog:null})}
 function renderBiolog(){
   const chars=allChars();
   if(!chars.length){document.getElementById('biolog-list').innerHTML=`<div class="empty"><div class="e-icon">⏱️</div><div class="e-text">Sin personajes</div></div>`;return}
-  const byState=c=>{const l=c.biolog?(c.biolog+BIOLOG_DUR)-now():null;if(l===null)return 2;return l<=0?0:1};
-  const sorted=[...chars].sort((a,b)=>{const sa=byState(a),sb=byState(b);if(sa!==sb)return sa-sb;const al=a.biolog?(a.biolog+BIOLOG_DUR)-now():Infinity;const bl=b.biolog?(b.biolog+BIOLOG_DUR)-now():Infinity;return al-bl});
+  const byState=c=>{const dur=biologDur(c.level);if(dur===0)return 3;const l=c.biolog?(c.biolog+dur)-now():null;if(l===null)return 2;return l<=0?0:1};
+  const sorted=[...chars].sort((a,b)=>{const sa=byState(a),sb=byState(b);if(sa!==sb)return sa-sb;const dur_a=biologDur(a.level),dur_b=biologDur(b.level);const al=a.biolog?(a.biolog+dur_a)-now():Infinity;const bl=b.biolog?(b.biolog+dur_b)-now():Infinity;return al-bl});
   const ready=sorted.filter(c=>byState(c)===0);const active=sorted.filter(c=>byState(c)===1);const idle=sorted.filter(c=>byState(c)===2);
   let html='';
   if(ready.length)html+=`<div class="sec-header sec-green">✅ LISTOS — ${ready.length}</div>${ready.map(c=>bilogCard(c,0)).join('')}`;
@@ -425,8 +445,9 @@ function renderBiolog(){
   document.getElementById('biolog-list').innerHTML=html;
 }
 function bilogCard(c,state){
-  const left=c.biolog?(c.biolog+BIOLOG_DUR)-now():null;const ready=state===0;
-  const pct=c.biolog&&left>0?Math.max(0,(1-left/BIOLOG_DUR)*100):(ready?100:0);
+  const dur=biologDur(c.level);
+  const left=dur>0&&c.biolog?(c.biolog+dur)-now():null;const ready=state===0;
+  const pct=c.biolog&&left>0?Math.max(0,(1-left/dur)*100):(ready?100:0);
   return `<div class="card ${ready?'ready':''}">
     <div style="padding:12px 14px;display:flex;justify-content:space-between;align-items:center">
       <div>
@@ -434,6 +455,7 @@ function bilogCard(c,state){
           <span style="font-size:16px">${CLASS_ICON[classLabel(c.class)]||'⚔️'}</span>
           <span style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:${ready?'var(--green)':'var(--text)'}">${c.name}</span>
           <span style="font-size:9px;background:#0a0500;color:var(--muted);padding:1px 5px;border-radius:3px;font-family:'Cinzel',serif">${c.accName}</span>
+          <span style="font-size:8px;color:var(--muted2);font-family:'Cinzel',serif">${biologLabel(c.level)}</span>
         </div>
         <div class="timer-big ${ready?'ready':left===null?'idle':'active'}" style="margin-top:6px">
           ${left===null?'<span style="font-size:12px">Sin rastrear — pulsa Reset</span>':ready?'✓ BIOLOG LISTO':fmtTime(left)}
