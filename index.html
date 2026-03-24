@@ -279,16 +279,16 @@ const BIO_IMGS = {
 
 // Stages manuales del biolog (el jugador elige en cuál está)
 const BIOLOG_STAGES = [
-  {id:'bio1', name:'Biologul 1', lv:'Lv 30', dur:22*3600*1000},
-  {id:'bio2', name:'Biologul 2', lv:'Lv 40', dur:22*3600*1000},
-  {id:'bio3', name:'Biologul 3', lv:'Lv 50', dur:22*3600*1000},
-  {id:'bio4', name:'Biologul 4', lv:'Lv 60', dur:22*3600*1000},
-  {id:'bio5', name:'Biologul 5', lv:'Lv 70', dur:22*3600*1000},
-  {id:'bio6', name:'Biologul 6', lv:'Lv 80', dur:22*3600*1000},
-  {id:'bio7', name:'Biologul 7', lv:'Lv 85', dur:22*3600*1000},
-  {id:'bio8', name:'Biologul 8', lv:'Lv 90', dur:22*3600*1000},
-  {id:'seon1',name:'Seon-Pyeong 1',lv:'Lv 92',dur:12*3600*1000},
-  {id:'seon2',name:'Seon-Pyeong 2',lv:'Lv 94',dur:12*3600*1000},
+  {id:'bio1', name:'Biologul 1', lv:'Lv 30', dur:22*3600*1000, item:'Dinte de Orc x10'},
+  {id:'bio2', name:'Biologul 2', lv:'Lv 40', dur:22*3600*1000, item:'Piatra Sufletului Jinungyi'},
+  {id:'bio3', name:'Biologul 3', lv:'Lv 50', dur:22*3600*1000, item:'Suvenirul Demonului x15'},
+  {id:'bio4', name:'Biologul 4', lv:'Lv 60', dur:22*3600*1000, item:'Glob de gheață x20'},
+  {id:'bio5', name:'Biologul 5', lv:'Lv 70', dur:22*3600*1000, item:'Creangă Zelkova x25'},
+  {id:'bio6', name:'Biologul 6', lv:'Lv 80', dur:22*3600*1000, item:'Tabla lui Tugyi x30'},
+  {id:'bio7', name:'Biologul 7', lv:'Lv 85', dur:22*3600*1000, item:'Ramură Roșie x40'},
+  {id:'bio8', name:'Biologul 8', lv:'Lv 90', dur:22*3600*1000, item:'Însemnele Liderilor x50'},
+  {id:'seon1',name:'Seon-Pyeong 1',lv:'Lv 92',dur:12*3600*1000, item:'Bijuterie Rea Voință x10'},
+  {id:'seon2',name:'Seon-Pyeong 2',lv:'Lv 94',dur:12*3600*1000, item:'Bijuterie Înțelepciune x20'},
 ];
 function getBiologStage(stageId){ return BIOLOG_STAGES.find(s=>s.id===stageId)||null; }
 function biologDurFromStage(stageId){ const s=getBiologStage(stageId); return s?s.dur:0; }
@@ -412,7 +412,7 @@ function renderBiolog(){
   const chars=allChars();
   // Solo mostrar personajes con stage configurado
   const tracked=chars.filter(c=>c.biologStage);
-  const untracked=chars.filter(c=>!c.biologStage);
+  const untracked=chars.filter(c=>!c.biologStage && (parseInt(c.level)||1)>=30);
   const el=document.getElementById('biolog-list');
 
   const byState=c=>{const dur=biologDurFromStage(c.biologStage);const l=c.biolog?(c.biolog+dur)-now():null;if(l===null)return 2;return l<=0?0:1};
@@ -427,10 +427,10 @@ function renderBiolog(){
       <div style="display:flex;gap:6px;align-items:center">
         <select id="bio-add-sel" class="inp" style="flex:1;margin-bottom:0;font-size:11px">
           <option value="">— Elige personaje —</option>
-          ${untracked.map(c=>`<option value="${c.aid}|${c.id}">${c.name} (${c.accName})</option>`).join('')}
+          ${untracked.map(c=>`<option value="${c.aid}|${c.id}">${c.name} (Nv.${c.level||1})</option>`).join('')}
         </select>
         <select id="bio-stage-sel" class="inp" style="flex:1;margin-bottom:0;font-size:11px">
-          ${BIOLOG_STAGES.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}
+          ${BIOLOG_STAGES.map(s=>`<option value="${s.id}">${s.name} — ${s.item}</option>`).join('')}
         </select>
         <button class="btn btn-gold btn-sm" onclick="addToBiolog()">＋</button>
       </div>
@@ -459,17 +459,22 @@ function bilogCard(c,state){
   const dur=biologDurFromStage(c.biologStage);
   const left=dur>0&&c.biolog?(c.biolog+dur)-now():null;const ready=state===0;
   const pct=c.biolog&&left>0?Math.max(0,(1-left/dur)*100):(ready?100:0);
+  const stage=getBiologStage(c.biologStage);
   return `<div class="card ${ready?'ready':''}">
-    <div style="padding:12px 14px;display:flex;justify-content:space-between;align-items:center">
+    <div style="padding:12px 14px;display:flex;justify-content:space-between;align-items:flex-start">
       <div style="flex:1">
         <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
           <span style="font-size:16px">${CLASS_ICON[classLabel(c.class)]||'⚔️'}</span>
           <span style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:${ready?'var(--green)':'var(--text)'}">${c.name}</span>
+          <span style="font-size:9px;color:var(--muted);font-family:'Cinzel',serif">Nv.${c.level||1}</span>
           <span style="font-size:9px;background:#0a0500;color:var(--muted);padding:1px 5px;border-radius:3px;font-family:'Cinzel',serif">${c.accName}</span>
-          <span style="font-size:9px;background:#1a0c00;color:var(--gold);padding:1px 6px;border-radius:3px;border:1px solid var(--gold3);font-family:'Cinzel',serif">${biologNameFromStage(c.biologStage)}</span>
-          ${BIO_IMGS[c.biologStage]?`<img src="${BIO_IMGS[c.biologStage]}" style="width:28px;height:28px;object-fit:contain;border-radius:4px;border:1px solid var(--gold3);background:#0a0500" title="${biologNameFromStage(c.biologStage)}"/>`:''}
         </div>
-        <div class="timer-big ${ready?'ready':left===null?'idle':'active'}" style="margin-top:6px">
+        <div style="display:flex;align-items:center;gap:7px;margin-top:5px;flex-wrap:wrap">
+          <span style="font-size:9px;background:#1a0c00;color:var(--gold);padding:2px 7px;border-radius:3px;border:1px solid var(--gold3);font-family:'Cinzel',serif">${biologNameFromStage(c.biologStage)}</span>
+          ${BIO_IMGS[c.biologStage]?`<img src="${BIO_IMGS[c.biologStage]}" style="width:26px;height:26px;object-fit:contain;border-radius:4px;border:1px solid var(--gold3);background:#0a0500"/>`:''}
+          ${stage?.item?`<span style="font-size:10px;color:var(--muted);font-style:italic">📦 ${stage.item}</span>`:''}
+        </div>
+        <div class="timer-big ${ready?'ready':left===null?'idle':'active'}" style="margin-top:8px">
           ${left===null?'<span style="font-size:12px">Sin rastrear — pulsa Reset</span>':ready?'✓ BIOLOG LISTO':fmtTime(left)}
         </div>
       </div>
