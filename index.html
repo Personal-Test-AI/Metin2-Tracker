@@ -478,8 +478,8 @@ function bilogCard(c,state){
           ${BIO_IMGS[c.biologStage]?`<img src="${BIO_IMGS[c.biologStage]}" style="width:26px;height:26px;object-fit:contain;border-radius:4px;border:1px solid var(--gold3);background:#0a0500"/>`:''}
           ${stage?.item?`<span style="font-size:10px;color:var(--muted);font-style:italic">📦 ${stage.item}</span>`:''}
         </div>
-        <div class="timer-big ${ready?'ready':left===null?'idle':'active'}" style="margin-top:8px">
-          ${left===null?'<span style="font-size:12px">Sin rastrear — pulsa Reset</span>':ready?'✓ BIOLOG LISTO':fmtTime(left)}
+        <div class="timer-big ${ready?'ready':left===null?'idle':'active'}" data-biolog-timer data-aid="${c.aid}" data-cid="${c.id}" style="margin-top:8px">
+          ${left===null?'Sin rastrear — pulsa Reset':ready?'✓ BIOLOG LISTO':fmtTime(left)}
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0;margin-left:8px">
@@ -488,7 +488,7 @@ function bilogCard(c,state){
         <button class="btn btn-muted btn-xs" style="color:#7a2010;border-color:#3a1010" onclick="patchChar('${c.aid}','${c.id}',{biologStage:null,biolog:null})">Quitar</button>
       </div>
     </div>
-    ${c.biolog?`<div style="padding:0 14px 10px"><div style="height:6px;background:#0a0500;border-radius:3px;overflow:hidden;border:1px solid var(--border2)"><div class="pbar ${ready?'pbar-green':'pbar-gold'}" style="width:${pct}%"></div></div></div>`:''}
+    ${c.biolog?`<div style="padding:0 14px 10px"><div style="height:6px;background:#0a0500;border-radius:3px;overflow:hidden;border:1px solid var(--border2)"><div class="pbar ${ready?'pbar-green':'pbar-gold'}" data-biolog-bar data-aid="${c.aid}" data-cid="${c.id}" style="width:${pct}%"></div></div></div>`:''}
   </div>`;
 }
 
@@ -624,7 +624,40 @@ function renderEventos(){
 initBuffModal();
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open')}));
 pullFromSupabase();
-setInterval(render,1000);
+
+// Render completo solo 1 vez al inicio y cuando cambia data
+// El tick solo actualiza los timers en el DOM sin re-renderizar
+setInterval(()=>{
+  updateQuickStats();
+  // Actualizar timers de biolog en el DOM directamente sin re-renderizar
+  document.querySelectorAll('[data-biolog-timer]').forEach(el=>{
+    const aid=el.dataset.aid, cid=el.dataset.cid;
+    const acc=accounts.find(a=>a.id===aid);
+    const c=acc?.chars.find(x=>x.id===cid);
+    if(!c)return;
+    const dur=biologDurFromStage(c.biologStage);
+    const left=dur>0&&c.biolog?(c.biolog+dur)-now():null;
+    const ready=left!==null&&left<=0;
+    if(left===null){el.textContent='Sin rastrear — pulsa Reset';el.className='timer-big idle';}
+    else if(ready){el.textContent='✓ BIOLOG LISTO';el.className='timer-big ready';}
+    else{el.textContent=fmtTime(left);el.className='timer-big active';}
+  });
+  // Actualizar barras de progreso
+  document.querySelectorAll('[data-biolog-bar]').forEach(el=>{
+    const aid=el.dataset.aid, cid=el.dataset.cid;
+    const acc=accounts.find(a=>a.id===aid);
+    const c=acc?.chars.find(x=>x.id===cid);
+    if(!c)return;
+    const dur=biologDurFromStage(c.biologStage);
+    const left=dur>0&&c.biolog?(c.biolog+dur)-now():null;
+    const ready=left!==null&&left<=0;
+    const pct=c.biolog&&left>0?Math.max(0,(1-left/dur)*100):(ready?100:0);
+    el.style.width=pct+'%';
+    el.className='pbar '+(ready?'pbar-green':'pbar-gold');
+  });
+  // Re-renderizar tabs que NO son biolog (los otros no tienen formularios problemáticos)
+  if(currentTab!=='biolog') render();
+},1000);
 </script>
 </body>
 </html>
