@@ -274,16 +274,16 @@ const BIO_IMGS = {
 
 // Stages manuales del biolog (el jugador elige en cuál está)
 const BIOLOG_STAGES = [
-  {id:'bio1', name:'Biologul 1', lv:'Lv 30', dur:22*3600*1000, item:'Dinte de Orc x10'},
-  {id:'bio2', name:'Biologul 2', lv:'Lv 40', dur:22*3600*1000, item:'Cartea blestemelor x15'},
-  {id:'bio3', name:'Biologul 3', lv:'Lv 50', dur:22*3600*1000, item:'Suvenirul Demonului x15'},
-  {id:'bio4', name:'Biologul 4', lv:'Lv 60', dur:22*3600*1000, item:'Glob de gheață x20'},
-  {id:'bio5', name:'Biologul 5', lv:'Lv 70', dur:22*3600*1000, item:'Creangă Zelkova x25'},
-  {id:'bio6', name:'Biologul 6', lv:'Lv 80', dur:22*3600*1000, item:'Tabla lui Tugyi x30'},
-  {id:'bio7', name:'Biologul 7', lv:'Lv 85', dur:22*3600*1000, item:'Ramură Roșie x40'},
-  {id:'bio8', name:'Biologul 8', lv:'Lv 90', dur:22*3600*1000, item:'Însemnele Liderilor x50'},
-  {id:'seon1',name:'Seon-Pyeong 1',lv:'Lv 92',dur:12*3600*1000, item:'Bijuterie Rea Voință x10'},
-  {id:'seon2',name:'Seon-Pyeong 2',lv:'Lv 94',dur:12*3600*1000, item:'Bijuterie Înțelepciune x20'},
+  {id:'bio1', name:'Biologul 1', lv:'Lv 30', dur:22*3600*1000, item:'Dinte de Orc x10',          total:10},
+  {id:'bio2', name:'Biologul 2', lv:'Lv 40', dur:22*3600*1000, item:'Cartea blestemelor x15',     total:15},
+  {id:'bio3', name:'Biologul 3', lv:'Lv 50', dur:22*3600*1000, item:'Suvenirul Demonului x15',    total:15},
+  {id:'bio4', name:'Biologul 4', lv:'Lv 60', dur:22*3600*1000, item:'Glob de gheață x20',         total:20},
+  {id:'bio5', name:'Biologul 5', lv:'Lv 70', dur:22*3600*1000, item:'Creangă Zelkova x25',        total:25},
+  {id:'bio6', name:'Biologul 6', lv:'Lv 80', dur:22*3600*1000, item:'Tabla lui Tugyi x30',        total:30},
+  {id:'bio7', name:'Biologul 7', lv:'Lv 85', dur:22*3600*1000, item:'Ramură Roșie x40',           total:40},
+  {id:'bio8', name:'Biologul 8', lv:'Lv 90', dur:22*3600*1000, item:'Însemnele Liderilor x50',    total:50},
+  {id:'seon1',name:'Seon-Pyeong 1',lv:'Lv 92',dur:12*3600*1000, item:'Bijuterie Rea Voință x10', total:10},
+  {id:'seon2',name:'Seon-Pyeong 2',lv:'Lv 94',dur:12*3600*1000, item:'Bijuterie Înțelepciune x20',total:20},
 ];
 function getBiologStage(stageId){ return BIOLOG_STAGES.find(s=>s.id===stageId)||null; }
 function biologDurFromStage(stageId){ const s=getBiologStage(stageId); return s?s.dur:0; }
@@ -431,8 +431,8 @@ function renderBiolog(){
         ${untracked.map(c=>`<option value="${c.aid}|${c.id}">${c.name} · Nv.${c.level||1} · ${c.accName}</option>`).join('')}
         ${untracked.length===0?`<option disabled>Todos los personajes ya están añadidos</option>`:''}
       </select>
-      <select id="bio-stage-sel" class="inp" style="margin-bottom:6px;font-size:11px">
-        ${BIOLOG_STAGES.map(s=>`<option value="${s.id}" ${savedStage===s.id?'selected':''}>${s.name} (${s.lv}) — ${s.item}</option>`).join('')}
+      <select id="bio-stage-sel" class="inp" style="margin-bottom:6px;font-size:11px" onchange="autoFillBioTotal()">
+        ${BIOLOG_STAGES.map(s=>`<option value="${s.id}" data-total="${s.total}" ${savedStage===s.id?'selected':''}>${s.name} (${s.lv}) — ${s.item}</option>`).join('')}
       </select>
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
         <label style="font-size:10px;color:var(--muted);flex-shrink:0">Éxitos necesarios:</label>
@@ -454,13 +454,21 @@ function renderBiolog(){
   }
   el.innerHTML=html;
 }
+function autoFillBioTotal(){
+  const sel=document.getElementById('bio-stage-sel');
+  if(!sel)return;
+  const opt=sel.options[sel.selectedIndex];
+  const total=opt?.dataset?.total;
+  if(total) document.getElementById('bio-total-inp').value=total;
+}
 function addToBiolog(){
   const sel=document.getElementById('bio-add-sel');
   const stageSel=document.getElementById('bio-stage-sel');
   const totalInp=document.getElementById('bio-total-inp');
   if(!sel||!sel.value)return;
   const [aid,cid]=sel.value.split('|');
-  const total=parseInt(totalInp?.value)||10;
+  const stage=BIOLOG_STAGES.find(s=>s.id===stageSel.value);
+  const total=parseInt(totalInp?.value)||stage?.total||10;
   patchChar(aid,cid,{biologStage:stageSel.value,biolog:null,biologSuccesses:0,biologTotal:total});
 }
 function bilogCard(c,state){
