@@ -125,10 +125,11 @@ textarea.inp{resize:vertical;min-height:54px}
 
 <div id="tabs">
   <button class="tab-btn active" onclick="switchTab('cuentas')"><span class="t-icon">👤</span>CUENTAS</button>
-  <button class="tab-btn" onclick="switchTab('biolog')"><span class="t-icon" style="position:relative">⏱️<span id="badge-bio" class="tab-badge"></span></span>BIOLOG</button>
   <button class="tab-btn" onclick="switchTab('buffs')"><span class="t-icon" style="position:relative">✨<span id="badge-buff" class="tab-badge"></span></span>BUFFS</button>
-  <button class="tab-btn" onclick="switchTab('alertas')"><span class="t-icon" style="position:relative">🔔<span id="badge-alert" class="tab-badge" style="background:var(--red)"></span></span>ALERTAS</button>
+  <button class="tab-btn" onclick="switchTab('biolog')"><span class="t-icon" style="position:relative">⏱️<span id="badge-bio" class="tab-badge"></span></span>BIOLOG</button>
   <button class="tab-btn" onclick="switchTab('eventos')"><span class="t-icon">📅</span>EVENTOS</button>
+  <button class="tab-btn" onclick="switchTab('seis7')"><span class="t-icon">⚗️</span>6/7</button>
+  <button class="tab-btn" onclick="switchTab('alertas')"><span class="t-icon" style="position:relative">🔔<span id="badge-alert" class="tab-badge" style="background:var(--red)"></span></span>ALERTAS</button>
 </div>
 
 <div id="content">
@@ -136,16 +137,19 @@ textarea.inp{resize:vertical;min-height:54px}
     <button class="btn btn-gold btn-full" style="margin-bottom:12px" onclick="openModal('modal-add-acc')">＋ Nueva Cuenta</button>
     <div id="cuentas-list"></div>
   </div>
+  <div id="tab-buffs" class="tab-panel"><div id="buffs-list"></div></div>
   <div id="tab-biolog" class="tab-panel">
     <div style="font-size:10px;color:var(--muted);text-align:center;margin-bottom:10px;font-family:'Cinzel',serif;letter-spacing:1px">Pulsa RESET cada vez que hagas el biolog</div>
     <div id="biolog-list"></div>
   </div>
-  <div id="tab-buffs" class="tab-panel"><div id="buffs-list"></div></div>
-  <div id="tab-alertas" class="tab-panel"><div id="alertas-list"></div></div>
   <div id="tab-eventos" class="tab-panel">
     <button class="btn btn-gold btn-full" style="margin-bottom:12px" onclick="openModal('modal-add-evento')">📅 Añadir Evento de Temporada</button>
     <div id="eventos-list"></div>
   </div>
+  <div id="tab-seis7" class="tab-panel">
+    <div class="empty"><div class="e-icon">⚗️</div><div class="e-text">Próximamente</div><div class="e-sub">Sistema de objetos con contador 24h y reducciones 5/10/20/30%</div></div>
+  </div>
+  <div id="tab-alertas" class="tab-panel"><div id="alertas-list"></div></div>
 </div>
 
 <!-- MODALS -->
@@ -1175,7 +1179,7 @@ setInterval(()=>{
   });
   // Re-renderizar tabs que NO son biolog (los otros no tienen formularios problemáticos)
   checkAlerts();
-  if(currentTab!=='biolog' && currentTab!=='buffs') render();
+  if(currentTab!=='biolog' && currentTab!=='buffs' && currentTab!=='seis7') render();
 },1000);
 </script>
 </body>
