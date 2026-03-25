@@ -612,8 +612,8 @@ function saveCustomBuff(){
 }
 
 let buffCollapsed={};
-
 function toggleBuffCard(cid){buffCollapsed[cid]=!buffCollapsed[cid];renderBuffs()}
+function addBuffToChar(aid,cid,buffId){
   accounts=accounts.map(a=>a.id!==aid?a:{...a,chars:a.chars.map(c=>{
     if(c.id!==cid)return c;
     const tb=[...new Set([...(c.trackedBuffs||[]),buffId])];
