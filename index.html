@@ -119,7 +119,6 @@ textarea.inp{resize:vertical;min-height:54px}
   <div class="sub">ORGANIZADOR DEFINITIVO</div>
   <div id="quick-stats">
     <span id="qs-bio" class="qs-badge qs-bio"></span>
-    <span id="qs-bio-active" class="qs-badge qs-buff"></span>
     <span id="qs-buff" class="qs-badge qs-buff"></span>
   </div>
 </div>
@@ -138,10 +137,7 @@ textarea.inp{resize:vertical;min-height:54px}
     <div id="cuentas-list"></div>
   </div>
   <div id="tab-biolog" class="tab-panel">
-    <div style="display:flex;justify-content:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
-      <span id="bio-tab-active" style="font-size:9px;font-family:'Cinzel',serif;color:var(--gold);background:rgba(201,162,39,.1);border:1px solid rgba(201,162,39,.2);padding:2px 10px;border-radius:10px;letter-spacing:1px;display:none"></span>
-      <span id="bio-tab-ready" style="font-size:9px;font-family:'Cinzel',serif;color:var(--green);background:rgba(77,255,138,.1);border:1px solid rgba(77,255,138,.2);padding:2px 10px;border-radius:10px;letter-spacing:1px;display:none"></span>
-    </div>
+    <div id="bio-summary" style="display:none;background:#100800;border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap"></div>
     <div style="font-size:10px;color:var(--muted);text-align:center;margin-bottom:10px;font-family:'Cinzel',serif;letter-spacing:1px">Pulsa RESET cada vez que hagas el biolog</div>
     <div id="biolog-list"></div>
   </div>
@@ -358,15 +354,20 @@ function updateQuickStats(){
   const bioActive=chars.filter(c=>{const dur=biologDurFromStage(c.biologStage);const left=dur>0&&c.biolog?(c.biolog+dur)-now():null;return left!==null&&left>0}).length;
   const activeBuffs=chars.reduce((s,c)=>{const tb=c.trackedBuffs||[];return s+tb.filter(bid=>(c.activeBuffs||{})[bid]&&(c.activeBuffs||{})[bid]>now()).length},0);
   const eb=document.getElementById('qs-bio');eb.className='qs-badge qs-bio'+(bioReady>0?' show':'');eb.textContent=`🟢 ${bioReady} listos`;
-  const ea=document.getElementById('qs-bio-active');if(ea){ea.className='qs-badge qs-buff'+(bioActive>0?' show':'');ea.textContent=`⏱️ ${bioActive} en curso`;}
   const ef=document.getElementById('qs-buff');ef.className='qs-badge qs-buff'+(activeBuffs>0?' show':'');ef.textContent=`✨ ${activeBuffs} buffs`;
   const bb=document.getElementById('badge-bio');bb.className='tab-badge'+(bioReady>0?' show':'');bb.textContent=bioReady;
   const bbu=document.getElementById('badge-buff');bbu.className='tab-badge'+(activeBuffs>0?' show':'');bbu.textContent=activeBuffs;
-  // Counters inside biolog tab
-  const ta=document.getElementById('bio-tab-active');
-  if(ta){ta.style.display=bioActive>0?'inline-block':'none';ta.textContent=`⏱️ ${bioActive} EN CURSO`;}
-  const tr=document.getElementById('bio-tab-ready');
-  if(tr){tr.style.display=bioReady>0?'inline-block':'none';tr.textContent=`✅ ${bioReady} LISTOS`;}
+  // Summary panel inside biolog tab
+  const bs=document.getElementById('bio-summary');
+  if(bs){
+    const parts=[];
+    if(bioActive>0) parts.push(`<span style="font-size:11px;font-family:'Cinzel',serif;color:var(--gold)">⏱️ ${bioActive} EN CURSO</span>`);
+    if(bioReady>0)  parts.push(`<span style="font-size:11px;font-family:'Cinzel',serif;color:var(--green)">✅ ${bioReady} LISTOS</span>`);
+    const tracked=allChars().filter(c=>c.biologStage).length;
+    if(tracked>0)   parts.push(`<span style="font-size:11px;font-family:'Cinzel',serif;color:var(--muted)">📋 ${tracked} en seguimiento</span>`);
+    if(parts.length>0){bs.style.display='flex';bs.innerHTML=parts.join('<span style="color:var(--border)">·</span>');}
+    else{bs.style.display='none';}
+  }
 }
 
 /* ══ CUENTAS ══ */
