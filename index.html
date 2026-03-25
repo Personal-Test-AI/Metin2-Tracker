@@ -345,7 +345,17 @@ const COSM_CATALOG = [
 const CLASS_ICON={'Guerrero':'⚔️','Ninja':'🗡️','Shamán':'🔮','Sura':'👹','Lycan':'🐺'};
 const todayMs=()=>{const d=new Date();d.setHours(0,0,0,0);return d.getTime()};
 const weekMs=()=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-d.getDay());return d.getTime()};
-function fmtTime(ms){if(ms<=0)return'LISTO';const s=Math.floor(ms/1000);const h=Math.floor(s/3600);const m=Math.floor((s%3600)/60);const sc=s%60;return h>0?`${h}h ${pad(m)}m ${pad(sc)}s`:`${pad(m)}m ${pad(sc)}s`}
+function fmtTime(ms){
+  if(ms<=0)return'LISTO';
+  const s=Math.floor(ms/1000);
+  const d=Math.floor(s/86400);
+  const h=Math.floor((s%86400)/3600);
+  const m=Math.floor((s%3600)/60);
+  const sc=s%60;
+  if(d>0) return h>0?`${d}d ${h}h ${pad(m)}m`:`${d}d ${pad(m)}m`;
+  if(h>0) return `${h}h ${pad(m)}m ${pad(sc)}s`;
+  return `${pad(m)}m ${pad(sc)}s`;
+}
 function classLabel(f){return f?f.replace(/^[^ ]+ /,''):'Guerrero'}
 function allChars(){return accounts.flatMap(a=>a.chars.map(c=>({...c,aid:a.id,accName:a.name})))}
 function isDungDone(c,d){const t=(c.dungeons||{})[d.id];if(!t)return false;return d.reset==='weekly'?t>=weekMs():t>=todayMs()}
