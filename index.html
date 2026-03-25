@@ -161,8 +161,9 @@ textarea.inp{resize:vertical;min-height:54px}
 <div id="modal-add-char" class="overlay"><div class="modal">
   <input type="text" style="display:none" autocomplete="username"/>
   <input type="password" style="display:none" autocomplete="new-password"/>
-  <div class="modal-title">⚔ Nuevo Personaje<button class="btn-del" onclick="closeModal('modal-add-char')">✕</button></div>
+  <div class="modal-title"><span>⚔ Nuevo Personaje</span><button class="btn-del" onclick="closeModal('modal-add-char')">✕</button></div>
   <input type="hidden" id="char-aid"/>
+  <input type="hidden" id="char-edit-id"/>
   <label class="lbl">Nombre del personaje</label>
   <input id="char-name" class="inp" placeholder="Nombre…" autocomplete="new-password" onkeydown="if(event.key==='Enter')saveChar()"/>
   <div style="display:flex;gap:8px">
@@ -405,6 +406,7 @@ function charRowHTML(aid,c){
         <span class="tag tag-${(c.kingdom||'Shinsoo').toLowerCase()}">${c.kingdom||'Shinsoo'}</span>
       </div>
       <div style="display:flex;align-items:center;gap:4px">
+        <button onclick="openEditChar('${aid}','${c.id}')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 7px;cursor:pointer;font-size:12px" title="Editar">✏️</button>
         <button onclick="toggleAlert('${aid}','${c.id}')" style="background:${alerted?'rgba(201,162,39,.2)':'none'};border:1px solid ${alerted?'var(--gold)':'var(--border)'};color:${alerted?'var(--gold)':'var(--muted)'};border-radius:6px;padding:3px 7px;cursor:pointer;font-size:13px" title="${alerted?'Alertas ON':'Alertas OFF'}">🔔</button>
         <button class="btn-del" onclick="delChar('${aid}','${c.id}')">✕</button>
       </div>
@@ -414,12 +416,48 @@ function charRowHTML(aid,c){
 function toggleCollapse(id){collapsed[id]=!collapsed[id];renderCuentas()}
 function saveAccount(){const name=document.getElementById('acc-name').value.trim();if(!name)return;accounts.push({id:uid(),name,chars:[]});save();closeModal('modal-add-acc');document.getElementById('acc-name').value='';render()}
 function delAccount(id){if(!confirm('¿Eliminar cuenta?'))return;accounts=accounts.filter(a=>a.id!==id);save();render()}
-function openAddChar(aid){document.getElementById('char-aid').value=aid;openModal('modal-add-char')}
+function openAddChar(aid){
+  document.getElementById('char-aid').value=aid;
+  document.getElementById('char-edit-id').value='';
+  document.getElementById('char-name').value='';
+  document.getElementById('char-level').value='';
+  document.getElementById('char-class').value='⚔️ Guerrero';
+  document.getElementById('char-kingdom').value='Shinsoo';
+  document.querySelector('#modal-add-char .modal-title span').textContent='⚔ Nuevo Personaje';
+  document.querySelector('#modal-add-char .btn-gold').textContent='Añadir Personaje';
+  openModal('modal-add-char');
+}
+function openEditChar(aid,cid){
+  const acc=accounts.find(a=>a.id===aid);
+  const c=acc?.chars.find(x=>x.id===cid);
+  if(!c)return;
+  document.getElementById('char-aid').value=aid;
+  document.getElementById('char-edit-id').value=cid;
+  document.getElementById('char-name').value=c.name;
+  document.getElementById('char-level').value=c.level||1;
+  document.getElementById('char-class').value=c.class||'⚔️ Guerrero';
+  document.getElementById('char-kingdom').value=c.kingdom||'Shinsoo';
+  document.querySelector('#modal-add-char .modal-title span').textContent='✏️ Editar Personaje';
+  document.querySelector('#modal-add-char .btn-gold').textContent='Guardar Cambios';
+  openModal('modal-add-char');
+}
 function saveChar(){
-  const aid=document.getElementById('char-aid').value;const name=document.getElementById('char-name').value.trim();if(!name)return;
-  const acc=accounts.find(a=>a.id===aid);if(!acc)return;
-  acc.chars.push({id:uid(),name,level:parseInt(document.getElementById('char-level').value)||1,class:document.getElementById('char-class').value,kingdom:document.getElementById('char-kingdom').value,biolog:null,biologStage:null,dungeons:{},buffs:[],yang:0,notes:''});
-  save();closeModal('modal-add-char');document.getElementById('char-name').value='';render();
+  const aid=document.getElementById('char-aid').value;
+  const cid=document.getElementById('char-edit-id').value;
+  const name=document.getElementById('char-name').value.trim();
+  if(!name)return;
+  const level=parseInt(document.getElementById('char-level').value)||1;
+  const cls=document.getElementById('char-class').value;
+  const kingdom=document.getElementById('char-kingdom').value;
+  if(cid){
+    // Edit mode
+    accounts=accounts.map(a=>a.id!==aid?a:{...a,chars:a.chars.map(c=>c.id!==cid?c:{...c,name,level,class:cls,kingdom})});
+  } else {
+    // Add mode
+    const acc=accounts.find(a=>a.id===aid);if(!acc)return;
+    acc.chars.push({id:uid(),name,level,class:cls,kingdom,biolog:null,biologStage:null,dungeons:{},buffs:[],yang:0,notes:''});
+  }
+  save();closeModal('modal-add-char');render();
 }
 function delChar(aid,cid){accounts=accounts.map(a=>a.id!==aid?a:{...a,chars:a.chars.filter(c=>c.id!==cid)});save();render()}
 
