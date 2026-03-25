@@ -929,21 +929,24 @@ function renderAlertas(){
       const dur=biologDurFromStage(c.biologStage);
       const left=(c.biolog+dur)-n;
       const ready=left<=0;
-      items.push({icon:'⏱️',desc:biologNameFromStage(c.biologStage),left,ready});
+      items.push({icon:'⏱️',desc:biologNameFromStage(c.biologStage),left,ready,
+        clearFn:`clearBiolog('${c.aid}','${c.id}')`});
     }
     // Buffs
     (c.trackedBuffs||[]).forEach(bid=>{
       const exp=(c.activeBuffs||{})[bid];if(!exp)return;
-      const left=exp-n;if(left<=0&&left<-60000)return; // skip very expired
+      const left=exp-n;if(left<=0&&left<-60000)return;
       const b=BUFF_CATALOG.find(x=>x.id===bid);if(!b)return;
-      items.push({icon:b.icon,desc:b.name,left,ready:left<=0});
+      items.push({icon:b.icon,desc:b.name,left,ready:left<=0,
+        clearFn:`clearBuff('${c.aid}','${c.id}','${bid}')`});
     });
     // Cosméticos
     Object.entries(c.cosms||{}).forEach(([itemId,entry])=>{
       if(!entry?.expiresAt)return;
       const left=entry.expiresAt-n;if(left<=0&&left<-60000)return;
       const item=COSM_CATALOG.find(x=>x.id===itemId);if(!item)return;
-      items.push({icon:'🎭',desc:item.name,left,ready:left<=0});
+      items.push({icon:'🎭',desc:item.name,left,ready:left<=0,
+        clearFn:`clearCosm('${c.aid}','${c.id}','${itemId}')`});
     });
 
     const expiring=items.filter(i=>!i.ready&&i.left<=600000).length;
@@ -976,6 +979,7 @@ function renderAlertas(){
                 <span style="font-size:11px;font-weight:700;color:${it.ready?'var(--red)':it.left<=600000?'#ff9a40':'var(--gold)'}">${it.ready?'EXPIRADO':fmtTime(it.left)}</span>
               </div>
             </div>
+            ${it.ready&&it.clearFn?`<button onclick="${it.clearFn};renderAlertas()" style="background:rgba(255,80,64,.1);border:1px solid rgba(255,80,64,.3);color:var(--red);border-radius:6px;padding:2px 8px;cursor:pointer;font-size:10px;font-family:'Cinzel',serif;flex-shrink:0">✕</button>`:''}
           </div>`;
         }).join('')}
       </div>`:''}
