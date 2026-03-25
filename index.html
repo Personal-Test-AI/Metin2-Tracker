@@ -916,62 +916,116 @@ function renderSeis7(){
   const el=document.getElementById('seis7-list');
   if(!el)return;
   const chars=allChars();
-  if(!chars.length){
-    el.innerHTML=`<div class="empty"><div class="e-icon">⚗️</div><div class="e-text">Sin personajes</div><div class="e-sub">Crea personajes en la pestaña Cuentas</div></div>`;
-    return;
-  }
+  const tracked=chars.filter(c=>c.gearTracked).sort((a,b)=>(parseInt(b.level)||1)-(parseInt(a.level)||1));
+  const untracked=chars.filter(c=>!c.gearTracked);
   const n=now();
-  el.innerHTML=chars.map(c=>{
+
+  // Save selector value
+  const savedSel=document.getElementById('gear-add-sel')?.value||'';
+
+  const addPanel=`
+    <div style="background:#100800;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;margin-bottom:8px">➕ AÑADIR PERSONAJE A 6/7</div>
+      <div style="display:flex;gap:6px">
+        <select id="gear-add-sel" class="inp" style="flex:1;margin-bottom:0;font-size:11px">
+          <option value="">— Elige personaje —</option>
+          ${untracked.map(c=>`<option value="${c.aid}|${c.id}" ${savedSel===c.aid+'|'+c.id?'selected':''}>${c.name} · Nv.${c.level||1} · ${c.accName}</option>`).join('')}
+          ${untracked.length===0?`<option disabled>Todos añadidos</option>`:''}
+        </select>
+        <button class="btn btn-gold btn-xs" onclick="addGearTrackingFromSel()">＋</button>
+      </div>
+    </div>`;
+
+  if(!chars.length){el.innerHTML=`<div class="empty"><div class="e-icon">⚗️</div><div class="e-text">Sin personajes</div></div>`;return}
+
+  const cards=tracked.map(c=>{
     const gear=c.gear||{};
-    const expired=GEAR_CATALOG.filter(item=>{const g=gear[item.id];return g&&g.expiresAt<=n;}).length;
-    const active=GEAR_CATALOG.filter(item=>{const g=gear[item.id];return g&&g.expiresAt>n;}).length;
+    const gearEntry=c.activeGear?gear[c.activeGear]:null;
+    const hasItem=gearEntry&&gearEntry.expiresAt;
+    const left=hasItem?gearEntry.expiresAt-n:0;
+    const active=hasItem&&left>0;
+    const expired=hasItem&&left<=0;
+    const pct=active?Math.max(0,Math.min(100,(left/GEAR_DUR)*100)):0;
     const open=collapsed['gear_'+c.id]!==false;
+
     return `<div class="card">
       <div class="card-header" onclick="toggleCollapse('gear_${c.id}')">
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:16px">${CLASS_ICON[classLabel(c.class)]||'⚔️'}</span>
           <span style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:var(--gold2)">${c.name}</span>
           <span style="font-size:9px;color:var(--muted)">Nv.${c.level||1} · ${c.accName}</span>
-          ${active>0?`<span style="font-size:9px;background:rgba(201,162,39,.15);color:var(--gold);padding:1px 6px;border-radius:10px;font-family:'Cinzel',serif">${active} activo${active>1?'s':''}</span>`:''}
-          ${expired>0?`<span style="font-size:9px;background:rgba(255,80,64,.15);color:var(--red);padding:1px 6px;border-radius:10px;font-family:'Cinzel',serif">${expired} expirado${expired>1?'s':''}</span>`:''}
+          ${active?`<span style="font-size:9px;background:rgba(201,162,39,.15);color:var(--gold);padding:1px 6px;border-radius:10px;font-family:'Cinzel',serif">${GEAR_CATALOG.find(x=>x.id===c.activeGear)?.name||''}</span>`:''}
+          ${expired?`<span style="font-size:9px;background:rgba(255,80,64,.15);color:var(--red);padding:1px 6px;border-radius:10px;font-family:'Cinzel',serif">EXPIRADO</span>`:''}
         </div>
-        <span class="arrow ${open?'open':''}">▼</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="arrow ${open?'open':''}">▼</span>
+          <button onclick="event.stopPropagation();removeGearTracking('${c.aid}','${c.id}')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:2px 7px;cursor:pointer;font-size:11px">✕</button>
+        </div>
       </div>
-      ${open?`<div style="padding:8px 12px">
-        ${GEAR_CATALOG.map(item=>{
-          const g=gear[item.id];
-          const active=g&&g.expiresAt>n;
-          const expired=g&&g.expiresAt<=n;
-          const left=g?g.expiresAt-n:0;
-          const pct=active?Math.max(0,Math.min(100,(left/GEAR_DUR)*100)):0;
-          return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border2)">
-            <img src="${GEAR_IMGS[item.id]}" style="width:38px;height:38px;object-fit:contain;border-radius:6px;border:1px solid ${active?'var(--gold3)':expired?'rgba(255,80,64,.3)':'var(--border)'};background:#0a0500;flex-shrink:0"/>
-            <div style="flex:1;min-width:0">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-                <span style="font-size:11px;font-family:'Cinzel',serif;color:${expired?'var(--red)':active?'var(--gold2)':'var(--muted)'}">${item.name}</span>
-                <span style="font-size:11px;font-weight:700;color:${expired?'var(--red)':active&&left<=3600000?'#ff9a40':active?'var(--gold)':'var(--muted2)'}">${expired?'EXPIRADO':active?fmtTime(left):'—'}</span>
+      ${open?`<div style="padding:10px 12px">
+        ${!hasItem?`
+          <div style="margin-bottom:10px">
+            <label class="lbl">Objeto</label>
+            <select id="gear-item-sel-${c.id}" class="inp" style="margin-bottom:8px;font-size:11px">
+              <option value="">— Elige objeto —</option>
+              ${GEAR_CATALOG.map(item=>`<option value="${item.id}">${item.name}</option>`).join('')}
+            </select>
+            <label class="lbl">Nota (opcional)</label>
+            <input id="gn-${c.id}" class="inp" type="text" placeholder="ej: +9 refinado..." style="margin-bottom:8px;font-size:11px"/>
+            <button onclick="gearActivateFromSel('${c.aid}','${c.id}')" class="btn btn-gold btn-full">▶ Activar 24H</button>
+          </div>
+        `:`
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <img src="${GEAR_IMGS[c.activeGear]||''}" style="width:44px;height:44px;object-fit:contain;border-radius:8px;border:1px solid ${active?'var(--gold3)':'rgba(255,80,64,.3)'};background:#0a0500;flex-shrink:0"/>
+            <div style="flex:1">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <span style="font-size:13px;font-family:'Cinzel',serif;font-weight:700;color:${expired?'var(--red)':'var(--gold2)'}">${GEAR_CATALOG.find(x=>x.id===c.activeGear)?.name||''}</span>
+                <span style="font-size:13px;font-weight:700;color:${expired?'var(--red)':left<=3600000?'#ff9a40':'var(--gold)'}">${expired?'EXPIRADO':fmtTime(left)}</span>
               </div>
-              ${active?`<div class="pbar-wrap" style="margin-bottom:4px"><div class="pbar pbar-gold" style="width:${pct}%"></div></div>`:''}
-              ${g?.note?`<div style="font-size:10px;color:var(--muted);margin-bottom:4px;font-style:italic">${g.note}</div>`:''}
-              <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
-                ${!active&&!expired?`
-                  <input id="gn-${c.id}-${item.id}" class="inp" type="text" placeholder="Nota..." style="flex:1;min-width:80px;margin-bottom:0;font-size:10px;padding:3px 7px"/>
-                  <button onclick="gearActivate('${c.aid}','${c.id}','${item.id}')" class="btn btn-gold btn-xs" style="font-size:9px">▶ 24H</button>
-                `:''}
+              ${active?`<div class="pbar-wrap" style="margin-bottom:6px"><div class="pbar pbar-gold" style="width:${pct}%"></div></div>`:''}
+              ${gearEntry.note?`<div style="font-size:10px;color:var(--muted);margin-bottom:6px;font-style:italic">${gearEntry.note}</div>`:''}
+              <div style="display:flex;gap:5px;flex-wrap:wrap">
                 ${active?`
-                  <button onclick="gearReduce('${c.aid}','${c.id}','${item.id}',10)" class="btn btn-xs" style="font-size:9px;padding:2px 7px">-10%</button>
-                  <button onclick="gearReduce('${c.aid}','${c.id}','${item.id}',20)" class="btn btn-xs" style="font-size:9px;padding:2px 7px">-20%</button>
-                  <button onclick="gearReduce('${c.aid}','${c.id}','${item.id}',30)" class="btn btn-xs" style="font-size:9px;padding:2px 7px">-30%</button>
-                  <button onclick="gearClear('${c.aid}','${c.id}','${item.id}')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:2px 7px;cursor:pointer;font-size:10px">✕</button>
+                  <button onclick="gearReduce('${c.aid}','${c.id}','${c.activeGear}',10)" class="btn btn-xs" style="font-size:9px">-10%</button>
+                  <button onclick="gearReduce('${c.aid}','${c.id}','${c.activeGear}',20)" class="btn btn-xs" style="font-size:9px">-20%</button>
+                  <button onclick="gearReduce('${c.aid}','${c.id}','${c.activeGear}',30)" class="btn btn-xs" style="font-size:9px">-30%</button>
                 `:''}
-                ${expired?`<button onclick="gearClear('${c.aid}','${c.id}','${item.id}')" style="background:rgba(255,80,64,.1);border:1px solid rgba(255,80,64,.3);color:var(--red);border-radius:6px;padding:2px 8px;cursor:pointer;font-size:10px;font-family:'Cinzel',serif">✕ Borrar</button>`:''}
+                ${expired?`<button onclick="gearClear('${c.aid}','${c.id}','${c.activeGear}')" style="background:rgba(255,80,64,.1);border:1px solid rgba(255,80,64,.3);color:var(--red);border-radius:6px;padding:3px 10px;cursor:pointer;font-size:10px;font-family:'Cinzel',serif">✕ Borrar</button>`:''}
+                <button onclick="gearClear('${c.aid}','${c.id}','${c.activeGear}')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:10px">Cambiar</button>
               </div>
             </div>
-          </div>`;
-        }).join('')}
+          </div>
+        `}
       </div>`:''}
     </div>`;
   }).join('');
+
+  el.innerHTML=addPanel+cards;
+}
+
+function addGearTrackingFromSel(){
+  const sel=document.getElementById('gear-add-sel');
+  if(!sel?.value)return;
+  const [aid,cid]=sel.value.split('|');
+  accounts=accounts.map(a=>a.id!==aid?a:{...a,chars:a.chars.map(c=>c.id!==cid?c:{...c,gearTracked:true})});
+  save();renderSeis7();
+}
+
+function removeGearTracking(aid,cid){
+  accounts=accounts.map(a=>a.id!==aid?a:{...a,chars:a.chars.map(c=>c.id!==cid?c:{...c,gearTracked:false,activeGear:null})});
+  save();renderSeis7();
+}
+
+function gearActivateFromSel(aid,cid){
+  const itemId=document.getElementById(`gear-item-sel-${cid}`)?.value;
+  if(!itemId)return;
+  const note=document.getElementById(`gn-${cid}`)?.value||'';
+  accounts=accounts.map(a=>a.id!==aid?a:{...a,chars:a.chars.map(c=>{
+    if(c.id!==cid)return c;
+    const gear={...(c.gear||{}),[itemId]:{expiresAt:now()+GEAR_DUR,note}};
+    return{...c,gear,activeGear:itemId};
+  })});
+  save();renderSeis7();
 }
 
 function openGear(aid,cid){
@@ -1046,7 +1100,7 @@ function gearClear(aid,cid,itemId){
   accounts=accounts.map(a=>a.id!==aid?a:{...a,chars:a.chars.map(c=>{
     if(c.id!==cid)return c;
     const gear={...(c.gear||{})};delete gear[itemId];
-    return{...c,gear};
+    return{...c,gear,activeGear:null};
   })});
   save();if(currentTab==='seis7')renderSeis7();
 }
