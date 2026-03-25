@@ -127,6 +127,7 @@ textarea.inp{resize:vertical;min-height:54px}
   <button class="tab-btn active" onclick="switchTab('cuentas')"><span class="t-icon">👤</span>CUENTAS</button>
   <button class="tab-btn" onclick="switchTab('biolog')"><span class="t-icon" style="position:relative">⏱️<span id="badge-bio" class="tab-badge"></span></span>BIOLOG</button>
   <button class="tab-btn" onclick="switchTab('buffs')"><span class="t-icon" style="position:relative">✨<span id="badge-buff" class="tab-badge"></span></span>BUFFS</button>
+  <button class="tab-btn" onclick="switchTab('alertas')"><span class="t-icon" style="position:relative">🔔<span id="badge-alert" class="tab-badge" style="background:var(--red)"></span></span>ALERTAS</button>
   <button class="tab-btn" onclick="switchTab('eventos')"><span class="t-icon">📅</span>EVENTOS</button>
 </div>
 
@@ -140,6 +141,7 @@ textarea.inp{resize:vertical;min-height:54px}
     <div id="biolog-list"></div>
   </div>
   <div id="tab-buffs" class="tab-panel"><div id="buffs-list"></div></div>
+  <div id="tab-alertas" class="tab-panel"><div id="alertas-list"></div></div>
   <div id="tab-eventos" class="tab-panel">
     <button class="btn btn-gold btn-full" style="margin-bottom:12px" onclick="openModal('modal-add-evento')">📅 Añadir Evento de Temporada</button>
     <div id="eventos-list"></div>
@@ -342,6 +344,7 @@ function render(){
   if(currentTab==='cuentas')renderCuentas();
   if(currentTab==='biolog')renderBiolog();
   if(currentTab==='buffs')renderBuffs();
+  if(currentTab==='alertas')renderAlertas();
   if(currentTab==='eventos')renderEventos();
 }
 function updateQuickStats(){
@@ -384,6 +387,7 @@ function renderCuentas(){
   }).join('');
 }
 function charRowHTML(aid,c){
+  const alerted=c.alertEnabled;
   return `<div class="char-row">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div style="display:flex;align-items:center;gap:8px">
@@ -392,7 +396,10 @@ function charRowHTML(aid,c){
         <span class="tag tag-level">Nv.${c.level||1}</span>
         <span class="tag tag-${(c.kingdom||'Shinsoo').toLowerCase()}">${c.kingdom||'Shinsoo'}</span>
       </div>
-      <button class="btn-del" onclick="delChar('${aid}','${c.id}')">✕</button>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button onclick="toggleAlert('${aid}','${c.id}')" style="background:${alerted?'rgba(201,162,39,.2)':'none'};border:1px solid ${alerted?'var(--gold)':'var(--border)'};color:${alerted?'var(--gold)':'var(--muted)'};border-radius:6px;padding:3px 7px;cursor:pointer;font-size:13px" title="${alerted?'Alertas ON':'Alertas OFF'}">🔔</button>
+        <button class="btn-del" onclick="delChar('${aid}','${c.id}')">✕</button>
+      </div>
     </div>
   </div>`;
 }
@@ -727,6 +734,167 @@ function addBuffTrackingFromSel(){
 }
 function initBuffModal(){} // kept for compat
 
+/* ══ ALERTAS ══ */
+function toggleAlert(aid,cid){
+  patchChar(aid,cid,{alertEnabled:!accounts.find(a=>a.id===aid)?.chars.find(c=>c.id===cid)?.alertEnabled});
+  requestNotifPermission();
+}
+function requestNotifPermission(){
+  if('Notification' in window && Notification.permission==='default'){
+    Notification.requestPermission();
+  }
+}
+const notifSent={}; // track sent notifications to avoid repeats
+
+function sendNotif(key, title, body){
+  if(notifSent[key])return;
+  notifSent[key]=true;
+  if('Notification' in window && Notification.permission==='granted'){
+    new Notification(title,{body,icon:'https://ro-wiki.metin2.gameforge.com/images/thumb/4/42/Dinte_de_Ork.png/32px-Dinte_de_Ork.png'});
+  }
+  // Also mark in-app
+  addAlertMsg(key, title, body);
+}
+let alertMsgs=[];
+function addAlertMsg(key,title,body){
+  const existing=alertMsgs.find(m=>m.key===key);
+  if(!existing){
+    alertMsgs.unshift({key,title,body,time:now()});
+    if(alertMsgs.length>50)alertMsgs=alertMsgs.slice(0,50);
+  }
+  // Update badge
+  const badge=document.getElementById('badge-alert');
+  if(badge){badge.className='tab-badge show';badge.textContent=alertMsgs.length;}
+  if(currentTab==='alertas')renderAlertas();
+}
+function checkAlerts(){
+  const chars=allChars().filter(c=>c.alertEnabled);
+  chars.forEach(c=>{
+    // Biolog alerts
+    if(c.biologStage && c.biolog){
+      const dur=biologDurFromStage(c.biologStage);
+      const left=(c.biolog+dur)-now();
+      if(left>0&&left<=600000){ // 10 min
+        const k=`bio-10-${c.id}`;
+        if(!notifSent[k]) sendNotif(k,`⏱️ Biolog listo pronto`,`${c.name} — ${biologNameFromStage(c.biologStage)} expira en ${fmtTime(left)}`);
+      }
+      if(left>0&&left<=30000){ // 30 seg
+        const k=`bio-30s-${c.id}-${c.biolog}`;
+        if(!notifSent[k]) sendNotif(k,`🚨 ¡Biolog en 30 segundos!`,`${c.name} — ${biologNameFromStage(c.biologStage)}`);
+      }
+      if(left<=0){
+        // Reset for next cycle
+        delete notifSent[`bio-10-${c.id}`];
+        delete notifSent[`bio-30s-${c.id}-${c.biolog}`];
+      }
+    }
+    // Buff alerts
+    (c.trackedBuffs||[]).forEach(bid=>{
+      const exp=(c.activeBuffs||{})[bid];
+      if(!exp)return;
+      const left=exp-now();
+      const b=BUFF_CATALOG.find(x=>x.id===bid);
+      if(!b)return;
+      if(left>0&&left<=600000){
+        const k=`buff-10-${c.id}-${bid}`;
+        if(!notifSent[k]) sendNotif(k,`✨ Buff expira pronto`,`${c.name} — ${b.name} expira en ${fmtTime(left)}`);
+      }
+      if(left>0&&left<=30000){
+        const k=`buff-30s-${c.id}-${bid}-${exp}`;
+        if(!notifSent[k]) sendNotif(k,`🚨 ¡Buff en 30 segundos!`,`${c.name} — ${b.name}`);
+      }
+      if(left<=0){
+        delete notifSent[`buff-10-${c.id}-${bid}`];
+        delete notifSent[`buff-30s-${c.id}-${bid}-${exp}`];
+      }
+    });
+  });
+}
+function renderAlertas(){
+  const el=document.getElementById('alertas-list');
+  if(!el)return;
+  const chars=allChars();
+  const alertedChars=chars.filter(c=>c.alertEnabled);
+
+  // Permission banner
+  let permBanner='';
+  if('Notification' in window && Notification.permission!=='granted'){
+    permBanner=`<div style="background:rgba(201,162,39,.1);border:1px solid var(--gold3);border-radius:10px;padding:12px;margin-bottom:12px;text-align:center">
+      <div style="font-size:12px;color:var(--gold);margin-bottom:8px">🔔 Activa las notificaciones del navegador para recibir alertas aunque no estés en esta pestaña</div>
+      <button class="btn btn-gold" onclick="Notification.requestPermission().then(()=>renderAlertas())">Activar notificaciones</button>
+    </div>`;
+  } else if('Notification' in window && Notification.permission==='granted'){
+    permBanner=`<div style="background:rgba(77,255,138,.05);border:1px solid rgba(77,255,138,.2);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:10px;color:var(--green);text-align:center;font-family:'Cinzel',serif">✓ NOTIFICACIONES ACTIVAS</div>`;
+  }
+
+  // Active alerts summary
+  let summary='';
+  const n=now();
+  const items=[];
+  chars.filter(c=>c.alertEnabled).forEach(c=>{
+    if(c.biologStage&&c.biolog){
+      const dur=biologDurFromStage(c.biologStage);
+      const left=(c.biolog+dur)-n;
+      const urgent=left>0&&left<=600000;
+      const ready=left<=0;
+      if(urgent||ready) items.push({icon:'⏱️',name:c.name,desc:biologNameFromStage(c.biologStage),left,ready,type:'biolog'});
+    }
+    (c.trackedBuffs||[]).forEach(bid=>{
+      const exp=(c.activeBuffs||{})[bid];if(!exp)return;
+      const left=exp-n;
+      const b=BUFF_CATALOG.find(x=>x.id===bid);if(!b)return;
+      const urgent=left>0&&left<=600000;
+      const ready=left<=0;
+      if(urgent||ready) items.push({icon:b.icon,name:c.name,desc:b.name,left,ready,type:'buff'});
+    });
+  });
+
+  if(items.length){
+    items.sort((a,b)=>a.left-b.left);
+    summary=`<div style="margin-bottom:12px">
+      <div class="sec-header sec-red" style="margin-bottom:8px">⚠️ EXPIRAN PRONTO</div>
+      ${items.map(it=>`<div style="background:${it.ready?'rgba(255,80,64,.08)':'rgba(201,162,39,.06)'};border:1px solid ${it.ready?'rgba(255,80,64,.3)':'rgba(201,162,39,.2)'};border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <span style="font-size:16px">${it.icon}</span>
+          <span style="font-size:12px;font-family:'Cinzel',serif;color:var(--text);margin-left:8px">${it.name}</span>
+          <span style="font-size:10px;color:var(--muted);margin-left:6px">${it.desc}</span>
+        </div>
+        <span style="font-size:12px;font-weight:700;color:${it.ready?'var(--red)':'var(--gold)'}">${it.ready?'EXPIRADO':fmtTime(it.left)}</span>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  // All alerted chars list
+  const charList=alertedChars.length?`
+    <div class="sec-header sec-gold" style="margin-bottom:8px">🔔 PERSONAJES CON ALERTAS</div>
+    ${alertedChars.map(c=>`<div style="background:#100800;border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span>${CLASS_ICON[classLabel(c.class)]||'⚔️'}</span>
+        <span style="font-family:'Cinzel',serif;font-size:12px;color:var(--gold2)">${c.name}</span>
+        <span style="font-size:9px;color:var(--muted)">Nv.${c.level||1} · ${c.accName}</span>
+      </div>
+      <button onclick="toggleAlert('${c.aid}','${c.id}')" style="background:rgba(255,80,64,.1);border:1px solid rgba(255,80,64,.3);color:var(--red);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:10px;font-family:'Cinzel',serif">Quitar</button>
+    </div>`).join('')}`
+  :`<div class="empty"><div class="e-icon">🔔</div><div class="e-text">Sin alertas configuradas</div><div class="e-sub">Activa 🔔 en la fila de un personaje (pestaña Cuentas)</div></div>`;
+
+  // Log
+  const log=alertMsgs.length?`
+    <div class="sec-header sec-muted" style="margin:12px 0 8px">📋 HISTORIAL</div>
+    ${alertMsgs.slice(0,20).map(m=>`<div style="padding:6px 0;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between">
+      <div><span style="font-size:11px;color:var(--text)">${m.title}</span><br/><span style="font-size:10px;color:var(--muted)">${m.body}</span></div>
+      <span style="font-size:9px;color:var(--muted2);flex-shrink:0;margin-left:8px">${new Date(m.time).toLocaleTimeString()}</span>
+    </div>`).join('')}`:'';
+
+  el.innerHTML=`<div style="padding:0">${permBanner}${summary}${charList}${log}</div>`;
+
+  // Update badge
+  const badge=document.getElementById('badge-alert');
+  if(badge){
+    if(alertMsgs.length>0){badge.className='tab-badge show';badge.textContent=alertMsgs.length;}
+    else{badge.className='tab-badge';}
+  }
+}
+
 /* ══ EVENTOS ══ */
 function saveEvento(){
   const name=document.getElementById('ev-name').value.trim();if(!name)return;
@@ -774,6 +942,7 @@ function renderEventos(){
 /* ══ INIT ══ */
 initBuffModal();
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open')}));
+requestNotifPermission();
 pullFromSupabase();
 
 // Render completo solo 1 vez al inicio y cuando cambia data
@@ -825,6 +994,7 @@ setInterval(()=>{
     el.className='pbar '+(ready?'pbar-green':'pbar-gold');
   });
   // Re-renderizar tabs que NO son biolog (los otros no tienen formularios problemáticos)
+  checkAlerts();
   if(currentTab!=='biolog' && currentTab!=='buffs') render();
 },1000);
 </script>
