@@ -1142,11 +1142,15 @@ async function getPinHash(){
   }
 }
 
-async function savePinHash(hash){
+async function savePinHash(hash, len){
   try{
     await sb.from('m2_accounts').upsert({id:PIN_ID, pin_hash:hash, data:[], updated_at:new Date().toISOString()});
     localStorage.setItem('m2_pin_hash', hash);
-  }catch(e){ localStorage.setItem('m2_pin_hash', hash); }
+    localStorage.setItem('m2_pin_len', len);
+  }catch(e){
+    localStorage.setItem('m2_pin_hash', hash);
+    localStorage.setItem('m2_pin_len', len);
+  }
 }
 
 function showLockScreen(mode='unlock'){
@@ -1184,6 +1188,14 @@ function pinPress(val){
   if(window._pinBuffer.length >= 4){
     errorEl.textContent = '';
   }
+
+  // Auto-confirm when enough digits entered
+  if(window._pinMode === 'unlock'){
+    const pinLen = parseInt(localStorage.getItem('m2_pin_len')||'4');
+    if(window._pinBuffer.length >= pinLen){
+      setTimeout(()=>pinConfirm(), 120);
+    }
+  }
 }
 
 async function pinConfirm(){
@@ -1211,7 +1223,7 @@ async function pinConfirm(){
       return;
     }
     const hash = await sha256(pin);
-    await savePinHash(hash);
+    await savePinHash(hash, pin.length);
     hideLockScreen();
     render();
     pullFromSupabase();
