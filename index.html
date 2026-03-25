@@ -124,7 +124,7 @@ textarea.inp{resize:vertical;min-height:54px}
 
 <div id="tabs">
   <button class="tab-btn active" onclick="switchTab('cuentas')"><span class="t-icon">👤</span>CUENTAS</button>
-  <button class="tab-btn" onclick="switchTab('biolog')"><span class="t-icon" style="position:relative">⏱️<span id="badge-bio" class="tab-badge"></span></span>BIOLOG</button>
+  <button class="tab-btn" onclick="switchTab('biolog')"><span class="t-icon" style="position:relative">⏱️<span id="badge-bio" class="tab-badge" style="background:var(--gold3);color:#fff"></span></span>BIOLOG</button>
   <button class="tab-btn" onclick="switchTab('buffs')"><span class="t-icon" style="position:relative">✨<span id="badge-buff" class="tab-badge"></span></span>BUFFS</button>
   <button class="tab-btn" onclick="switchTab('alertas')"><span class="t-icon" style="position:relative">🔔<span id="badge-alert" class="tab-badge" style="background:var(--red)"></span></span>ALERTAS</button>
   <button class="tab-btn" onclick="switchTab('eventos')"><span class="t-icon">📅</span>EVENTOS</button>
@@ -352,7 +352,9 @@ function updateQuickStats(){
   const bioActive=chars.filter(c=>{const dur=biologDurFromStage(c.biologStage);const left=dur>0&&c.biolog?(c.biolog+dur)-now():null;return left!==null&&left>0}).length;
   const activeBuffs=chars.reduce((s,c)=>{const tb=c.trackedBuffs||[];return s+tb.filter(bid=>(c.activeBuffs||{})[bid]&&(c.activeBuffs||{})[bid]>now()).length},0);
   const ef=document.getElementById('qs-buff');ef.className='qs-badge qs-buff'+(activeBuffs>0?' show':'');ef.textContent=`✨ ${activeBuffs} buffs`;
-  const bb=document.getElementById('badge-bio');bb.className='tab-badge'+(bioReady>0?' show':'');bb.textContent=bioReady;
+  const bioTracked=chars.filter(c=>c.biologStage).length;
+  const bb=document.getElementById('badge-bio');
+  if(bb){bb.className='tab-badge'+(bioTracked>0?' show':'');bb.textContent=bioTracked;}
   const bbu=document.getElementById('badge-buff');bbu.className='tab-badge'+(activeBuffs>0?' show':'');bbu.textContent=activeBuffs;
 }
 
