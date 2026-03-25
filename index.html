@@ -361,7 +361,7 @@ function updateQuickStats(){
     eb.textContent=parts.join(' · ');
   }
   const ef=document.getElementById('qs-buff');ef.className='qs-badge qs-buff'+(activeBuffs>0?' show':'');ef.textContent=`✨ ${activeBuffs} buffs`;
-  if(bb){bb.className='tab-badge'+(bioReady>0?' show':'');bb.textContent=bioReady;}
+  const bb=document.getElementById('badge-bio');if(bb){bb.className='tab-badge'+(bioReady>0?' show':'');bb.textContent=bioReady;}
   const bbu=document.getElementById('badge-buff');bbu.className='tab-badge'+(activeBuffs>0?' show':'');bbu.textContent=activeBuffs;
 }
 
