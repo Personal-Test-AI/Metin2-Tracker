@@ -762,6 +762,8 @@ function addAlertMsg(key,title,body){
     alertMsgs.unshift({key,title,body,time:now()});
     if(alertMsgs.length>50)alertMsgs=alertMsgs.slice(0,50);
   }
+  // Auto-limpiar mensajes de más de 1 hora
+  alertMsgs=alertMsgs.filter(m=>now()-m.time<3600000);
   // Update badge
   const badge=document.getElementById('badge-alert');
   if(badge){badge.className='tab-badge show';badge.textContent=alertMsgs.length;}
@@ -880,10 +882,13 @@ function renderAlertas(){
   // Log
   const log=alertMsgs.length?`
     <div class="sec-header sec-muted" style="margin:12px 0 8px">📋 HISTORIAL</div>
-    ${alertMsgs.slice(0,20).map(m=>`<div style="padding:6px 0;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between">
+    ${alertMsgs.slice(0,20).map(m=>{
+      const ago=now()-m.time;
+      const agoStr=ago<60000?'ahora':ago<3600000?Math.floor(ago/60000)+'min':Math.floor(ago/3600000)+'h';
+      return `<div style="padding:6px 0;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between">
       <div><span style="font-size:11px;color:var(--text)">${m.title}</span><br/><span style="font-size:10px;color:var(--muted)">${m.body}</span></div>
-      <span style="font-size:9px;color:var(--muted2);flex-shrink:0;margin-left:8px">${new Date(m.time).toLocaleTimeString()}</span>
-    </div>`).join('')}`:'';
+      <span style="font-size:9px;color:var(--muted2);flex-shrink:0;margin-left:8px">hace ${agoStr}</span>
+    </div>`;}).join('')}`:'';
 
   el.innerHTML=`<div style="padding:0">${permBanner}${summary}${charList}${log}</div>`;
 
