@@ -611,7 +611,9 @@ function saveCustomBuff(){
   closeModal('modal-custom-buff');
 }
 
-function addBuffToChar(aid,cid,buffId){
+let buffCollapsed={};
+
+function toggleBuffCard(cid){buffCollapsed[cid]=!buffCollapsed[cid];renderBuffs()}
   accounts=accounts.map(a=>a.id!==aid?a:{...a,chars:a.chars.map(c=>{
     if(c.id!==cid)return c;
     const tb=[...new Set([...(c.trackedBuffs||[]),buffId])];
@@ -659,17 +661,22 @@ function renderBuffs(){
       const tb=c.trackedBuffs||[];
       const activeCount=tb.filter(bid=>ab[bid]&&ab[bid]>now()).length;
       const available=BUFF_CATALOG.filter(b=>!tb.includes(b.id));
+      const open=buffCollapsed[c.id]===true;
       return `<div class="card ${activeCount?'gold-border':''}">
-        <div style="padding:9px 12px;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center">
+        <div class="card-header" onclick="toggleBuffCard('${c.id}')">
           <div style="display:flex;align-items:center;gap:7px">
             <span style="font-size:15px">${CLASS_ICON[classLabel(c.class)]||'⚔️'}</span>
             <span style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:var(--gold2)">${c.name}</span>
-            <span style="font-size:9px;color:var(--muted)">${c.accName}</span>
+            <span style="font-size:9px;color:var(--muted)">${c.accName} · Nv.${c.level||1}</span>
             ${activeCount?`<span style="font-size:9px;background:#1a0c00;color:var(--gold);padding:1px 6px;border-radius:10px;font-family:'Cinzel',serif">${activeCount} activos</span>`:''}
           </div>
-          <button class="btn-del" title="Quitar personaje" onclick="removeBuffTracking('${c.aid}','${c.id}')">✕</button>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="arrow ${open?'open':''}">▼</span>
+            <button class="btn-del" title="Quitar personaje" onclick="event.stopPropagation();removeBuffTracking('${c.aid}','${c.id}')">✕</button>
+          </div>
         </div>
-        <div style="padding:6px 12px">
+        ${open?`
+        <div style="padding:6px 12px;border-top:1px solid var(--border2)">
           ${tb.length===0?`<div style="font-size:11px;color:var(--muted2);text-align:center;padding:10px">Sin buffs — añade uno abajo ↓</div>`:''}
           ${tb.map(bid=>{
             const b=BUFF_CATALOG.find(x=>x.id===bid);if(!b)return'';
@@ -701,7 +708,7 @@ function renderBuffs(){
             ${available.map(b=>`<option value="${b.id}">${b.icon} ${b.name} (${b.durations.map(d=>d.l).join('/')})</option>`).join('')}
           </select>
           <button class="btn btn-gold btn-sm" onclick="addBuffFromSel('${c.aid}','${c.id}')">＋</button>
-        </div>`:''}
+        </div>`:''}`:''}
       </div>`;
     }).join('');
   }
