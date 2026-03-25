@@ -1191,7 +1191,7 @@ function pinPress(val){
 
   // Auto-confirm when enough digits entered
   if(window._pinMode === 'unlock'){
-    const pinLen = parseInt(localStorage.getItem('m2_pin_len')||'4');
+    const pinLen = parseInt(localStorage.getItem('m2_pin_len')||'6');
     if(window._pinBuffer.length >= pinLen){
       setTimeout(()=>pinConfirm(), 120);
     }
