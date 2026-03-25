@@ -1134,13 +1134,19 @@ async function sha256(str){
 
 async function getPinHash(){
   try{
-    const {data} = await sb.from('m2_accounts').select('pin_hash').eq('id',PIN_ID).single();
-    return data?.pin_hash || null;
-  }catch(e){ return null; }
+    const {data,error} = await sb.from('m2_accounts').select('pin_hash').eq('id',PIN_ID).single();
+    if(!error && data?.pin_hash) return data.pin_hash;
+    return localStorage.getItem('m2_pin_hash') || null;
+  }catch(e){
+    return localStorage.getItem('m2_pin_hash') || null;
+  }
 }
 
 async function savePinHash(hash){
-  await sb.from('m2_accounts').upsert({id:PIN_ID, pin_hash:hash, updated_at:new Date().toISOString()});
+  try{
+    await sb.from('m2_accounts').upsert({id:PIN_ID, pin_hash:hash, data:[], updated_at:new Date().toISOString()});
+    localStorage.setItem('m2_pin_hash', hash);
+  }catch(e){ localStorage.setItem('m2_pin_hash', hash); }
 }
 
 function showLockScreen(mode='unlock'){
