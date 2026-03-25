@@ -1122,12 +1122,122 @@ function renderEventos(){
   }).join('');
 }
 
+/* ══ PIN LOCK ══ */
+const PIN_ID = SYNC_ID + '_pin';
+let appUnlocked = false;
+
+async function sha256(str){
+  const salted = '1123' + str + '1123';
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salted));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+async function getPinHash(){
+  try{
+    const {data} = await sb.from('m2_accounts').select('pin_hash').eq('id',PIN_ID).single();
+    return data?.pin_hash || null;
+  }catch(e){ return null; }
+}
+
+async function savePinHash(hash){
+  await sb.from('m2_accounts').upsert({id:PIN_ID, pin_hash:hash, updated_at:new Date().toISOString()});
+}
+
+function showLockScreen(mode='unlock'){
+  const overlay = document.getElementById('pin-overlay');
+  const title = document.getElementById('pin-title');
+  const subtitle = document.getElementById('pin-subtitle');
+  const dots = document.querySelectorAll('.pin-dot');
+  const errorEl = document.getElementById('pin-error');
+  title.textContent = mode==='create' ? '🔐 Crear PIN' : '🔒 Introduce tu PIN';
+  subtitle.textContent = mode==='create' ? 'Elige un PIN de 4 a 6 dígitos' : 'Introduce tu PIN para acceder';
+  errorEl.textContent = '';
+  dots.forEach(d=>d.classList.remove('filled'));
+  window._pinBuffer = '';
+  window._pinMode = mode;
+  overlay.style.display = 'flex';
+}
+
+function hideLockScreen(){
+  document.getElementById('pin-overlay').style.display = 'none';
+  appUnlocked = true;
+}
+
+function pinPress(val){
+  const errorEl = document.getElementById('pin-error');
+  if(val==='del'){
+    window._pinBuffer = window._pinBuffer.slice(0,-1);
+  } else {
+    if(window._pinBuffer.length >= 6) return;
+    window._pinBuffer += val;
+  }
+  // Update dots
+  const dots = document.querySelectorAll('.pin-dot');
+  dots.forEach((d,i)=> d.classList.toggle('filled', i < window._pinBuffer.length));
+
+  if(window._pinBuffer.length >= 4){
+    errorEl.textContent = '';
+  }
+}
+
+async function pinConfirm(){
+  const pin = window._pinBuffer;
+  const errorEl = document.getElementById('pin-error');
+  if(pin.length < 4){ errorEl.textContent = 'Mínimo 4 dígitos'; return; }
+
+  if(window._pinMode === 'create'){
+    // Ask confirm
+    if(!window._pinFirst){
+      window._pinFirst = pin;
+      document.getElementById('pin-title').textContent = '🔐 Confirma tu PIN';
+      document.getElementById('pin-subtitle').textContent = 'Introduce el PIN otra vez';
+      window._pinBuffer = '';
+      document.querySelectorAll('.pin-dot').forEach(d=>d.classList.remove('filled'));
+      return;
+    }
+    if(pin !== window._pinFirst){
+      errorEl.textContent = 'Los PINs no coinciden, inténtalo de nuevo';
+      window._pinFirst = null;
+      window._pinBuffer = '';
+      document.querySelectorAll('.pin-dot').forEach(d=>d.classList.remove('filled'));
+      document.getElementById('pin-title').textContent = '🔐 Crear PIN';
+      document.getElementById('pin-subtitle').textContent = 'Elige un PIN de 4 a 6 dígitos';
+      return;
+    }
+    const hash = await sha256(pin);
+    await savePinHash(hash);
+    hideLockScreen();
+    render();
+    pullFromSupabase();
+  } else {
+    const stored = await getPinHash();
+    const entered = await sha256(pin);
+    if(entered === stored){
+      hideLockScreen();
+      render();
+      pullFromSupabase();
+    } else {
+      errorEl.textContent = 'PIN incorrecto';
+      window._pinBuffer = '';
+      document.querySelectorAll('.pin-dot').forEach(d=>d.classList.remove('filled'));
+    }
+  }
+}
+
+async function initPin(){
+  const hash = await getPinHash();
+  if(!hash){
+    showLockScreen('create');
+  } else {
+    showLockScreen('unlock');
+  }
+}
+
 /* ══ INIT ══ */
 initBuffModal();
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open')}));
 requestNotifPermission();
-render(); // initial render with empty data
-pullFromSupabase();
+initPin();
 
 // Render completo solo 1 vez al inicio y cuando cambia data
 // El tick solo actualiza los timers en el DOM sin re-renderizar
@@ -1182,5 +1292,26 @@ setInterval(()=>{
   if(currentTab!=='biolog' && currentTab!=='buffs' && currentTab!=='seis7') render();
 },1000);
 </script>
-</body>
+<!-- PIN LOCK -->
+<div id="pin-overlay" style="display:none;position:fixed;inset:0;background:#0a0600;z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:18px">
+  <div style="font-family:'Cinzel',serif;font-size:22px;color:var(--gold);letter-spacing:2px" id="pin-title">🔒 PIN</div>
+  <div style="font-size:12px;color:var(--muted);font-family:'Crimson Text',serif" id="pin-subtitle"></div>
+  <div style="display:flex;gap:14px;margin:8px 0">
+    <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+  </div>
+  <div id="pin-error" style="font-size:11px;color:var(--red);font-family:'Cinzel',serif;min-height:16px"></div>
+  <div style="display:grid;grid-template-columns:repeat(3,70px);gap:10px">
+    ${[1,2,3,4,5,6,7,8,9,'','0','del'].map(v=>
+      v===''?`<div></div>`:
+      `<button onclick="${v==='del'?'pinPress(\'del\')':'pinPress(\''+v+'\')'}" style="height:70px;background:#1a0c00;border:1px solid var(--border);border-radius:12px;color:${v==='del'?'var(--red)':'var(--gold2)'};font-size:${v==='del'?'18px':'22px'};font-family:'Cinzel',serif;cursor:pointer">${v==='del'?'⌫':v}</button>`
+    ).join('')}
+  </div>
+  <button onclick="pinConfirm()" style="margin-top:6px;background:var(--gold3);border:none;color:#000;font-family:'Cinzel',serif;font-size:13px;padding:12px 40px;border-radius:10px;cursor:pointer;font-weight:700">ENTRAR</button>
+</div>
+
+<style>
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--gold3);background:transparent;transition:background .15s}
+.pin-dot.filled{background:var(--gold)}
+</style>
 </html>
