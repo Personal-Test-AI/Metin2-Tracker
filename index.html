@@ -105,7 +105,7 @@ textarea.inp{resize:vertical;min-height:54px}
 .rank{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-family:'Cinzel',serif;font-weight:700;flex-shrink:0}
 .rank-1{background:linear-gradient(135deg,#c9a227,#f0dc80);color:#000}.rank-2{background:linear-gradient(135deg,#8a8a8a,#ccc);color:#000}.rank-3{background:linear-gradient(135deg,#a05020,#d08040);color:#fff}.rank-n{background:var(--border);color:var(--muted)}
 .yang-row{display:flex;align-items:center;gap:5px;margin-top:5px}.yang-row input{width:80px;margin-bottom:0;font-size:11px;padding:3px 7px}
-.timer-big{font-size:22px;font-family:'Cinzel',serif;font-weight:700}
+.pbar-red{background:linear-gradient(90deg,var(--red),#ff6b4a)}
 .timer-big.ready{color:var(--green);text-shadow:0 0 14px rgba(77,255,138,.5)}.timer-big.active{color:var(--gold)}.timer-big.idle{color:var(--muted2)}
 @media(min-width:500px){body{border-left:1px solid var(--border2);border-right:1px solid var(--border2)}}
 </style>
@@ -143,7 +143,6 @@ textarea.inp{resize:vertical;min-height:54px}
     <div id="biolog-list"></div>
   </div>
   <div id="tab-eventos" class="tab-panel">
-    <button class="btn btn-gold btn-full" style="margin-bottom:12px" onclick="openModal('modal-add-evento')">📅 Añadir Evento de Temporada</button>
     <div id="eventos-list"></div>
   </div>
   <div id="tab-seis7" class="tab-panel">
@@ -211,19 +210,15 @@ textarea.inp{resize:vertical;min-height:54px}
   <button class="btn btn-gold btn-full" onclick="saveCustomBuff()">Activar</button>
 </div></div>
 
-<div id="modal-add-evento" class="overlay"><div class="modal">
-  <div class="modal-title">📅 Nuevo Evento<button class="btn-del" onclick="closeModal('modal-add-evento')">✕</button></div>
-  <label class="lbl">Nombre del evento</label>
-  <input id="ev-name" class="inp" placeholder="ej: Evento Halloween…"/>
-  <label class="lbl">Fecha fin del evento</label>
-  <input id="ev-end" class="inp" type="datetime-local" style="color-scheme:dark"/>
-  <div style="display:flex;gap:8px">
-    <div style="flex:1"><label class="lbl">Meta</label><input id="ev-goal" class="inp" type="number" value="100" min="1"/></div>
-    <div style="flex:1"><label class="lbl">Unidad</label><input id="ev-unit" class="inp" placeholder="puntos…" value="puntos"/></div>
-  </div>
-  <label class="lbl">Notas</label>
-  <textarea id="ev-notes" class="inp" placeholder="Opcional…"></textarea>
-  <button class="btn btn-gold btn-full" onclick="saveEvento()">Guardar Evento</button>
+<div id="modal-okey" class="overlay"><div class="modal">
+  <div class="modal-title">🃏 Jocul Okey — Configurar<button class="btn-del" onclick="closeModal('modal-okey')">✕</button></div>
+  <label class="lbl">Fecha inicio</label>
+  <input id="okey-start" class="inp" type="datetime-local" style="color-scheme:dark"/>
+  <label class="lbl">Fecha fin</label>
+  <input id="okey-end" class="inp" type="datetime-local" style="color-scheme:dark"/>
+  <label class="lbl">Número de personajes</label>
+  <input id="okey-chars" class="inp" type="number" min="1" placeholder="ej: 3"/>
+  <button class="btn btn-gold btn-full" style="margin-top:4px" onclick="saveOkey()">Guardar</button>
 </div></div>
 
 <script>
@@ -1336,47 +1331,101 @@ function checkAlerts(){
 }
 
 /* ══ EVENTOS ══ */
-function saveEvento(){
-  const name=document.getElementById('ev-name').value.trim();if(!name)return;
-  const endRaw=document.getElementById('ev-end').value;
-  events.push({id:uid(),name,endDate:endRaw?new Date(endRaw).getTime():null,goal:parseInt(document.getElementById('ev-goal').value)||100,progress:0,unit:document.getElementById('ev-unit').value||'puntos',notes:document.getElementById('ev-notes').value,createdAt:now()});
-  save();closeModal('modal-add-evento');['ev-name','ev-end','ev-notes'].forEach(i=>document.getElementById(i).value='');document.getElementById('ev-goal').value=100;document.getElementById('ev-unit').value='puntos';render();
+/* ══ EVENTOS ══ */
+// events structure: {okey:{startDate,endDate,chars,seturi,bronz,argint,aur}, general:[...]}
+function getOkey(){return events.find?.(e=>e.id==='__okey__')||null;}
+function saveOkeyData(patch){
+  const existing=getOkey();
+  if(existing){events=events.map(e=>e.id==='__okey__'?{...e,...patch}:e);}
+  else{events.push({id:'__okey__',...patch});}
+  save();renderEventos();
 }
-function delEvento(id){if(!confirm('¿Eliminar evento?'))return;events=events.filter(e=>e.id!==id);save();render()}
-function updEvento(id,delta){events=events.map(e=>{if(e.id!==id)return e;return{...e,progress:Math.max(0,Math.min(e.goal,(e.progress||0)+delta))}}); save();render()}
-function setEvento(id,val){events=events.map(e=>{if(e.id!==id)return e;return{...e,progress:Math.max(0,Math.min(e.goal,parseInt(val)||0))}});save();render()}
+
+function saveOkey(){
+  const start=document.getElementById('okey-start').value;
+  const end=document.getElementById('okey-end').value;
+  const chars=parseInt(document.getElementById('okey-chars').value)||1;
+  saveOkeyData({
+    startDate:start?new Date(start).getTime():null,
+    endDate:end?new Date(end).getTime():null,
+    chars,
+    seturi:getOkey()?.seturi||0,
+    bronz:getOkey()?.bronz||0,
+    argint:getOkey()?.argint||0,
+    aur:getOkey()?.aur||0,
+  });
+  closeModal('modal-okey');
+}
+
+function openOkeyConfig(){
+  const o=getOkey();
+  if(o?.startDate){const d=new Date(o.startDate);document.getElementById('okey-start').value=d.toISOString().slice(0,16);}
+  if(o?.endDate){const d=new Date(o.endDate);document.getElementById('okey-end').value=d.toISOString().slice(0,16);}
+  if(o?.chars)document.getElementById('okey-chars').value=o.chars;
+  openModal('modal-okey');
+}
+
+function setOkeyField(field,val){
+  const n=parseInt(val);
+  if(isNaN(n)||n<0)return;
+  saveOkeyData({[field]:n});
+}
+
 function renderEventos(){
-  if(!events.length){document.getElementById('eventos-list').innerHTML=`<div class="empty"><div class="e-icon">📅</div><div class="e-text">Sin eventos activos</div><div class="e-sub">Añade eventos de temporada para trackear tu progreso</div></div>`;return}
-  document.getElementById('eventos-list').innerHTML=events.map(ev=>{
-    const pct=ev.goal>0?Math.min(100,((ev.progress||0)/ev.goal)*100):0;
-    const timeLeft=ev.endDate?ev.endDate-now():null;const done=pct>=100;const expired=timeLeft!==null&&timeLeft<=0;const urgent=timeLeft&&timeLeft>0&&timeLeft<3600000*24;
-    return `<div class="ev-card ${done?'done':''}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div style="flex:1">
-          <div style="font-family:'Cinzel',serif;font-weight:700;font-size:14px;color:${done?'var(--green)':'var(--gold2)'}">${done?'✓ ':''}${ev.name}</div>
-          ${timeLeft!==null?`<div style="font-size:10px;color:${expired?'var(--red)':urgent?'#ff9a40':'var(--muted)'};margin-top:2px">${expired?'⚠️ EVENTO TERMINADO':urgent?`⚠️ Termina en ${fmtTime(timeLeft)}`:`⏰ Termina en ${fmtTime(timeLeft)}`}</div>`:''}
-        </div>
-        <button class="btn-del" onclick="delEvento('${ev.id}')">✕</button>
+  const el=document.getElementById('eventos-list');
+  if(!el)return;
+  const n=now();
+  let html='';
+
+  // ── JOCUL OKEY ──
+  const okey=getOkey();
+  const okeyStart=okey?.startDate||null;
+  const okeyEnd=okey?.endDate||null;
+  const okeyLeft=okeyEnd?okeyEnd-n:null;
+  const okeyTotal=okeyEnd&&okeyStart?okeyEnd-okeyStart:null;
+  const okeyPct=okeyTotal&&okeyLeft>0?Math.max(0,Math.min(100,(okeyLeft/okeyTotal)*100)):okeyLeft<=0?0:100;
+  const okeyExpired=okeyLeft!==null&&okeyLeft<=0;
+  const okeyActive=okeyLeft!==null&&okeyLeft>0;
+
+  html+=`<div class="ev-card" style="margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div>
+        <div style="font-family:'Cinzel',serif;font-weight:700;font-size:15px;color:var(--gold2)">🃏 Jocul Okey</div>
+        ${okeyActive?`<div style="font-size:10px;color:${okeyLeft<86400000?'#ff9a40':'var(--muted)'};margin-top:2px">⏰ ${fmtTime(okeyLeft)} restante</div>`:''}
+        ${okeyExpired?`<div style="font-size:10px;color:var(--red);margin-top:2px">⚠️ EVENTO TERMINADO</div>`:''}
+        ${!okeyEnd?`<div style="font-size:10px;color:var(--muted2);margin-top:2px">Sin fechas configuradas</div>`:''}
       </div>
-      <div style="margin-top:10px">
-        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">
-          <span style="color:var(--muted);font-family:'Cinzel',serif;letter-spacing:.5px">PROGRESO</span>
-          <span style="color:var(--gold)">${(ev.progress||0).toLocaleString()} / ${ev.goal.toLocaleString()} ${ev.unit} · ${pct.toFixed(1)}%</span>
-        </div>
-        <div style="height:12px;background:#0a0500;border-radius:6px;overflow:hidden;border:1px solid var(--border2)">
-          <div class="pbar ${done?'pbar-green':'pbar-gold'}" style="width:${pct}%;height:100%;box-shadow:${done?'0 0 8px var(--green)':'0 0 6px var(--gold)'}"></div>
-        </div>
-        <div class="ev-controls">
-          <button class="btn btn-muted btn-sm" onclick="updEvento('${ev.id}',-1)">−1</button>
-          <input class="inp" type="number" value="${ev.progress||0}" onchange="setEvento('${ev.id}',this.value)" style="flex:1;min-width:60px;text-align:center;margin-bottom:0;padding:5px 8px;font-size:12px"/>
-          <button class="btn btn-gold btn-sm" onclick="updEvento('${ev.id}',1)">＋1</button>
-          <button class="btn btn-muted btn-sm" onclick="updEvento('${ev.id}',10)">＋10</button>
-          <button class="btn btn-muted btn-sm" onclick="updEvento('${ev.id}',100)">＋100</button>
-        </div>
+      <button onclick="openOkeyConfig()" class="btn btn-xs" style="font-size:10px">⚙️ Config</button>
+    </div>
+    ${okeyEnd?`<div class="pbar-wrap" style="margin-bottom:12px"><div class="pbar ${okeyExpired?'pbar-red':'pbar-gold'}" style="width:${okeyExpired?100:okeyPct}%"></div></div>`:''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div style="background:#0a0500;border:1px solid var(--border);border-radius:8px;padding:10px">
+        <div style="font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;margin-bottom:6px">🃏 SETURI CARDURI</div>
+        <input class="inp" type="number" min="0" value="${okey?.seturi||0}" onchange="setOkeyField('seturi',this.value)" style="margin-bottom:0;text-align:center;font-size:16px;font-weight:700;color:var(--gold);padding:6px"/>
       </div>
-      ${ev.notes?`<div style="font-size:10px;color:var(--muted);margin-top:9px;font-style:italic;border-top:1px solid var(--border2);padding-top:7px">${ev.notes}</div>`:''}
-    </div>`;
-  }).join('');
+      <div style="background:#0a0500;border:1px solid var(--border);border-radius:8px;padding:10px">
+        <div style="font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;margin-bottom:6px">👥 PERSONAJES</div>
+        <input class="inp" type="number" min="1" value="${okey?.chars||1}" onchange="setOkeyField('chars',this.value)" style="margin-bottom:0;text-align:center;font-size:16px;font-weight:700;color:var(--gold);padding:6px"/>
+      </div>
+    </div>
+    <div style="font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;margin-bottom:6px">🎁 COFRES OBTENIDOS</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      <div style="background:#1a0800;border:1px solid #6b3a1f;border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:9px;color:#cd7f32;font-family:'Cinzel',serif;margin-bottom:6px">🥉 BRONZ</div>
+        <input class="inp" type="number" min="0" value="${okey?.bronz||0}" onchange="setOkeyField('bronz',this.value)" style="margin-bottom:0;text-align:center;font-size:18px;font-weight:700;color:#cd7f32;padding:6px;border-color:#6b3a1f"/>
+      </div>
+      <div style="background:#0a0f1a;border:1px solid #4a6080;border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:9px;color:#aac4e0;font-family:'Cinzel',serif;margin-bottom:6px">🥈 ARGINT</div>
+        <input class="inp" type="number" min="0" value="${okey?.argint||0}" onchange="setOkeyField('argint',this.value)" style="margin-bottom:0;text-align:center;font-size:18px;font-weight:700;color:#aac4e0;padding:6px;border-color:#4a6080"/>
+      </div>
+      <div style="background:#1a1200;border:1px solid var(--gold3);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:9px;color:var(--gold);font-family:'Cinzel',serif;margin-bottom:6px">🥇 AUR</div>
+        <input class="inp" type="number" min="0" value="${okey?.aur||0}" onchange="setOkeyField('aur',this.value)" style="margin-bottom:0;text-align:center;font-size:18px;font-weight:700;color:var(--gold);padding:6px"/>
+      </div>
+    </div>
+  </div>`;
+
+  el.innerHTML=html;
 }
 
 /* ══ PIN LOCK ══ */
