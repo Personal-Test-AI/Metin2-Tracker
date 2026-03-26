@@ -1332,43 +1332,106 @@ function checkAlerts(){
 
 /* ══ EVENTOS ══ */
 /* ══ EVENTOS ══ */
-// events structure: {okey:{startDate,endDate,chars,seturi,bronz,argint,aur}, general:[...]}
-function getOkey(){return events.find?.(e=>e.id==='__okey__')||null;}
-function saveOkeyData(patch){
-  const existing=getOkey();
-  if(existing){events=events.map(e=>e.id==='__okey__'?{...e,...patch}:e);}
-  else{events.push({id:'__okey__',...patch});}
-  save();renderEventos();
+const EVENT_TYPES = [
+  {id:'okey',    name:'Jocul Okey',    icon:'🃏'},
+  {id:'profet',  name:'Event Profet',  icon:'🔮'},
+  {id:'rege',    name:'Prinde Regele', icon:'👑'},
+  {id:'general', name:'General',       icon:'📅'},
+];
+
+let activeEventId = null; // which event card is open
+
+function getEvData(id){ return events.find(e=>e.id==='__ev_'+id)||null; }
+function saveEvData(id, patch){
+  const existing=getEvData(id);
+  if(existing){ events=events.map(e=>e.id==='__ev_'+id?{...e,...patch}:e); }
+  else{ events.push({id:'__ev_'+id, evType:id, createdAt:now(), ...patch}); }
+  save(); renderEventos();
 }
 
-function saveOkey(){
-  const start=document.getElementById('okey-start').value;
-  const end=document.getElementById('okey-end').value;
-  const chars=parseInt(document.getElementById('okey-chars').value)||1;
-  saveOkeyData({
-    startDate:start?new Date(start).getTime():null,
-    endDate:end?new Date(end).getTime():null,
-    chars,
-    seturi:getOkey()?.seturi||0,
-    bronz:getOkey()?.bronz||0,
-    argint:getOkey()?.argint||0,
-    aur:getOkey()?.aur||0,
-  });
-  closeModal('modal-okey');
+function archiveEvent(id){
+  const ev=getEvData(id);
+  if(!ev)return;
+  const archived={...ev, id:'__arch_'+id+'_'+now(), archived:true, archivedAt:now()};
+  // Reset current
+  events=events.map(e=>e.id==='__ev_'+id?{id:'__ev_'+id, evType:id, createdAt:now()}:e);
+  events.push(archived);
+  save(); renderEventos();
 }
 
-function openOkeyConfig(){
-  const o=getOkey();
-  if(o?.startDate){const d=new Date(o.startDate);document.getElementById('okey-start').value=d.toISOString().slice(0,16);}
-  if(o?.endDate){const d=new Date(o.endDate);document.getElementById('okey-end').value=d.toISOString().slice(0,16);}
-  if(o?.chars)document.getElementById('okey-chars').value=o.chars;
-  openModal('modal-okey');
-}
-
-function setOkeyField(field,val){
+function setEvField(id, field, val){
   const n=parseInt(val);
   if(isNaN(n)||n<0)return;
-  saveOkeyData({[field]:n});
+  saveEvData(id,{[field]:n});
+}
+
+function saveEvDates(id){
+  const start=document.getElementById(`ev-start-${id}`)?.value;
+  const end=document.getElementById(`ev-end-${id}`)?.value;
+  const chars=parseInt(document.getElementById(`ev-chars-${id}`)?.value)||1;
+  const existing=getEvData(id)||{};
+  saveEvData(id,{
+    startDate:start?new Date(start).getTime():existing.startDate||null,
+    endDate:end?new Date(end).getTime():existing.endDate||null,
+    chars,
+  });
+}
+
+function renderOkeyDetail(ev){
+  const n=now();
+  const okeyLeft=ev.endDate?ev.endDate-n:null;
+  const okeyTotal=ev.endDate&&ev.startDate?ev.endDate-ev.startDate:null;
+  const okeyPct=okeyTotal&&okeyLeft>0?Math.max(0,Math.min(100,(okeyLeft/okeyTotal)*100)):okeyLeft<=0?0:100;
+  const expired=okeyLeft!==null&&okeyLeft<=0;
+  const active=okeyLeft!==null&&okeyLeft>0;
+  const startStr=ev.startDate?new Date(ev.startDate).toLocaleDateString('ro-RO',{day:'2-digit',month:'short',year:'numeric'}):'—';
+  const endStr=ev.endDate?new Date(ev.endDate).toLocaleDateString('ro-RO',{day:'2-digit',month:'short',year:'numeric'}):'—';
+  const createdStr=ev.createdAt?new Date(ev.createdAt).toLocaleDateString('ro-RO',{day:'2-digit',month:'short',year:'numeric'}):'—';
+
+  return `
+    <div style="font-size:10px;color:var(--muted);margin-bottom:10px;font-family:'Cinzel',serif">
+      CREADO: ${createdStr} &nbsp;·&nbsp; ${startStr} → ${endStr}
+    </div>
+    ${ev.endDate?`
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:${expired?'var(--red)':active&&okeyLeft<86400000?'#ff9a40':'var(--muted)'};margin-bottom:4px">
+      <span>${expired?'⚠️ TERMINADO':active?`⏰ ${fmtTime(okeyLeft)} restante`:''}</span>
+    </div>
+    <div class="pbar-wrap" style="margin-bottom:12px"><div class="pbar ${expired?'pbar-red':'pbar-gold'}" style="width:${expired?100:okeyPct}%"></div></div>`:''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div style="background:#0a0500;border:1px solid var(--border);border-radius:8px;padding:10px">
+        <div style="font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;margin-bottom:6px">🃏 SETURI CARDURI</div>
+        <input class="inp" type="number" min="0" value="${ev.seturi||0}" onchange="setEvField('okey','seturi',this.value)" style="margin-bottom:0;text-align:center;font-size:16px;font-weight:700;color:var(--gold);padding:6px"/>
+      </div>
+      <div style="background:#0a0500;border:1px solid var(--border);border-radius:8px;padding:10px">
+        <div style="font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;margin-bottom:6px">👥 PERSONAJES</div>
+        <input class="inp" type="number" min="1" value="${ev.chars||1}" onchange="setEvField('okey','chars',this.value)" style="margin-bottom:0;text-align:center;font-size:16px;font-weight:700;color:var(--gold);padding:6px"/>
+      </div>
+    </div>
+    <div style="font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;margin-bottom:6px">🎁 COFRES OBTENIDOS</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
+      <div style="background:#1a0800;border:1px solid #6b3a1f;border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:9px;color:#cd7f32;font-family:'Cinzel',serif;margin-bottom:6px">🥉 BRONZ</div>
+        <input class="inp" type="number" min="0" value="${ev.bronz||0}" onchange="setEvField('okey','bronz',this.value)" style="margin-bottom:0;text-align:center;font-size:18px;font-weight:700;color:#cd7f32;padding:6px;border-color:#6b3a1f"/>
+      </div>
+      <div style="background:#0a0f1a;border:1px solid #4a6080;border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:9px;color:#aac4e0;font-family:'Cinzel',serif;margin-bottom:6px">🥈 ARGINT</div>
+        <input class="inp" type="number" min="0" value="${ev.argint||0}" onchange="setEvField('okey','argint',this.value)" style="margin-bottom:0;text-align:center;font-size:18px;font-weight:700;color:#aac4e0;padding:6px;border-color:#4a6080"/>
+      </div>
+      <div style="background:#1a1200;border:1px solid var(--gold3);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:9px;color:var(--gold);font-family:'Cinzel',serif;margin-bottom:6px">🥇 AUR</div>
+        <input class="inp" type="number" min="0" value="${ev.aur||0}" onchange="setEvField('okey','aur',this.value)" style="margin-bottom:0;text-align:center;font-size:18px;font-weight:700;color:var(--gold);padding:6px"/>
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--border2);padding-top:10px;margin-top:4px">
+      <div style="font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;margin-bottom:8px">⚙️ CONFIGURAR FECHAS</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div><label class="lbl">Inicio</label><input id="ev-start-okey" class="inp" type="datetime-local" style="color-scheme:dark;font-size:11px" ${ev.startDate?`value="${new Date(ev.startDate).toISOString().slice(0,16)}"`:''}/></div>
+        <div><label class="lbl">Fin</label><input id="ev-end-okey" class="inp" type="datetime-local" style="color-scheme:dark;font-size:11px" ${ev.endDate?`value="${new Date(ev.endDate).toISOString().slice(0,16)}"`:''}/></div>
+      </div>
+      <div><label class="lbl">Nº Personajes</label><input id="ev-chars-okey" class="inp" type="number" min="1" value="${ev.chars||1}" style="font-size:12px"/></div>
+      <button onclick="saveEvDates('okey')" class="btn btn-gold btn-full" style="margin-top:4px">💾 Guardar fechas</button>
+    </div>
+    ${expired?`<button onclick="archiveEvent('okey')" style="margin-top:10px;width:100%;background:rgba(201,162,39,.1);border:1px solid var(--gold3);color:var(--gold);border-radius:8px;padding:10px;cursor:pointer;font-family:'Cinzel',serif;font-size:11px">📦 Archivar y empezar nuevo</button>`:''}`;
 }
 
 function renderEventos(){
@@ -1377,53 +1440,58 @@ function renderEventos(){
   const n=now();
   let html='';
 
-  // ── JOCUL OKEY ──
-  const okey=getOkey();
-  const okeyStart=okey?.startDate||null;
-  const okeyEnd=okey?.endDate||null;
-  const okeyLeft=okeyEnd?okeyEnd-n:null;
-  const okeyTotal=okeyEnd&&okeyStart?okeyEnd-okeyStart:null;
-  const okeyPct=okeyTotal&&okeyLeft>0?Math.max(0,Math.min(100,(okeyLeft/okeyTotal)*100)):okeyLeft<=0?0:100;
-  const okeyExpired=okeyLeft!==null&&okeyLeft<=0;
-  const okeyActive=okeyLeft!==null&&okeyLeft>0;
+  // ── EVENT CARDS MENU ──
+  html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">`;
+  EVENT_TYPES.forEach(et=>{
+    const ev=getEvData(et.id);
+    const isOpen=activeEventId===et.id;
+    const hasData=ev&&(ev.endDate||ev.seturi||ev.bronz||ev.argint||ev.aur);
+    const left=ev?.endDate?ev.endDate-n:null;
+    const expired=left!==null&&left<=0;
+    const active=left!==null&&left>0;
+    html+=`<div onclick="activeEventId=activeEventId==='${et.id}'?null:'${et.id}';renderEventos()"
+      style="background:${isOpen?'#1a0c00':'#0d0600'};border:1px solid ${isOpen?'var(--gold)':'var(--border)'};border-radius:10px;padding:12px;cursor:pointer;transition:all .2s">
+      <div style="font-size:20px;margin-bottom:4px">${et.icon}</div>
+      <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:${isOpen?'var(--gold)':'var(--gold2)'}">${et.name}</div>
+      ${expired?`<div style="font-size:9px;color:var(--red);margin-top:3px">TERMINADO</div>`:
+        active?`<div style="font-size:9px;color:var(--muted);margin-top:3px">${fmtTime(left)}</div>`:
+        hasData?`<div style="font-size:9px;color:var(--muted2);margin-top:3px">Activo</div>`:
+        `<div style="font-size:9px;color:var(--muted2);margin-top:3px">Sin configurar</div>`}
+    </div>`;
+  });
+  html+=`</div>`;
 
-  html+=`<div class="ev-card" style="margin-bottom:14px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <div>
-        <div style="font-family:'Cinzel',serif;font-weight:700;font-size:15px;color:var(--gold2)">🃏 Jocul Okey</div>
-        ${okeyActive?`<div style="font-size:10px;color:${okeyLeft<86400000?'#ff9a40':'var(--muted)'};margin-top:2px">⏰ ${fmtTime(okeyLeft)} restante</div>`:''}
-        ${okeyExpired?`<div style="font-size:10px;color:var(--red);margin-top:2px">⚠️ EVENTO TERMINADO</div>`:''}
-        ${!okeyEnd?`<div style="font-size:10px;color:var(--muted2);margin-top:2px">Sin fechas configuradas</div>`:''}
-      </div>
-      <button onclick="openOkeyConfig()" class="btn btn-xs" style="font-size:10px">⚙️ Config</button>
-    </div>
-    ${okeyEnd?`<div class="pbar-wrap" style="margin-bottom:12px"><div class="pbar ${okeyExpired?'pbar-red':'pbar-gold'}" style="width:${okeyExpired?100:okeyPct}%"></div></div>`:''}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-      <div style="background:#0a0500;border:1px solid var(--border);border-radius:8px;padding:10px">
-        <div style="font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;margin-bottom:6px">🃏 SETURI CARDURI</div>
-        <input class="inp" type="number" min="0" value="${okey?.seturi||0}" onchange="setOkeyField('seturi',this.value)" style="margin-bottom:0;text-align:center;font-size:16px;font-weight:700;color:var(--gold);padding:6px"/>
-      </div>
-      <div style="background:#0a0500;border:1px solid var(--border);border-radius:8px;padding:10px">
-        <div style="font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;margin-bottom:6px">👥 PERSONAJES</div>
-        <input class="inp" type="number" min="1" value="${okey?.chars||1}" onchange="setOkeyField('chars',this.value)" style="margin-bottom:0;text-align:center;font-size:16px;font-weight:700;color:var(--gold);padding:6px"/>
-      </div>
-    </div>
-    <div style="font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;margin-bottom:6px">🎁 COFRES OBTENIDOS</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-      <div style="background:#1a0800;border:1px solid #6b3a1f;border-radius:8px;padding:10px;text-align:center">
-        <div style="font-size:9px;color:#cd7f32;font-family:'Cinzel',serif;margin-bottom:6px">🥉 BRONZ</div>
-        <input class="inp" type="number" min="0" value="${okey?.bronz||0}" onchange="setOkeyField('bronz',this.value)" style="margin-bottom:0;text-align:center;font-size:18px;font-weight:700;color:#cd7f32;padding:6px;border-color:#6b3a1f"/>
-      </div>
-      <div style="background:#0a0f1a;border:1px solid #4a6080;border-radius:8px;padding:10px;text-align:center">
-        <div style="font-size:9px;color:#aac4e0;font-family:'Cinzel',serif;margin-bottom:6px">🥈 ARGINT</div>
-        <input class="inp" type="number" min="0" value="${okey?.argint||0}" onchange="setOkeyField('argint',this.value)" style="margin-bottom:0;text-align:center;font-size:18px;font-weight:700;color:#aac4e0;padding:6px;border-color:#4a6080"/>
-      </div>
-      <div style="background:#1a1200;border:1px solid var(--gold3);border-radius:8px;padding:10px;text-align:center">
-        <div style="font-size:9px;color:var(--gold);font-family:'Cinzel',serif;margin-bottom:6px">🥇 AUR</div>
-        <input class="inp" type="number" min="0" value="${okey?.aur||0}" onchange="setOkeyField('aur',this.value)" style="margin-bottom:0;text-align:center;font-size:18px;font-weight:700;color:var(--gold);padding:6px"/>
-      </div>
-    </div>
-  </div>`;
+  // ── OPEN EVENT DETAIL ──
+  if(activeEventId){
+    const et=EVENT_TYPES.find(x=>x.id===activeEventId);
+    const ev=getEvData(activeEventId)||{id:'__ev_'+activeEventId,evType:activeEventId,createdAt:now()};
+    html+=`<div class="ev-card">
+      <div style="font-family:'Cinzel',serif;font-weight:700;font-size:15px;color:var(--gold2);margin-bottom:10px">${et.icon} ${et.name}</div>
+      ${renderOkeyDetail(ev)}
+    </div>`;
+
+    // ── ARCHIVO ──
+    const archived=events.filter(e=>e.archived&&e.evType===activeEventId).sort((a,b)=>b.archivedAt-a.archivedAt);
+    if(archived.length){
+      html+=`<div style="margin-top:12px">
+        <div style="font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;margin-bottom:8px">📦 EDICIONES ANTERIORES</div>
+        ${archived.map(a=>{
+          const ds=a.startDate?new Date(a.startDate).toLocaleDateString('ro-RO',{day:'2-digit',month:'short',year:'numeric'}):'?';
+          const de=a.endDate?new Date(a.endDate).toLocaleDateString('ro-RO',{day:'2-digit',month:'short',year:'numeric'}):'?';
+          return `<div style="background:#0a0500;border:1px solid var(--border2);border-radius:8px;padding:10px;margin-bottom:6px;font-size:11px">
+            <div style="font-family:'Cinzel',serif;color:var(--muted);font-size:9px;margin-bottom:6px">${ds} → ${de}</div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap">
+              ${a.seturi?`<span>🃏 <b style="color:var(--gold)">${a.seturi}</b> seturi</span>`:''}
+              ${a.chars?`<span>👥 <b style="color:var(--gold)">${a.chars}</b> chars</span>`:''}
+              ${a.bronz?`<span>🥉 <b style="color:#cd7f32">${a.bronz}</b></span>`:''}
+              ${a.argint?`<span>🥈 <b style="color:#aac4e0">${a.argint}</b></span>`:''}
+              ${a.aur?`<span>🥇 <b style="color:var(--gold)">${a.aur}</b></span>`:''}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }
+  }
 
   el.innerHTML=html;
 }
