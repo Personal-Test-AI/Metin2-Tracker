@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -1391,6 +1390,7 @@ function renderOkeyDetail(ev){
   const startStr=ev.startDate?new Date(ev.startDate).toLocaleDateString('ro-RO',{day:'2-digit',month:'short',year:'numeric'}):'—';
   const endStr=ev.endDate?new Date(ev.endDate).toLocaleDateString('ro-RO',{day:'2-digit',month:'short',year:'numeric'}):'—';
   const createdStr=ev.createdAt?new Date(ev.createdAt).toLocaleDateString('ro-RO',{day:'2-digit',month:'short',year:'numeric'}):'—';
+  const inp=(id,val,field,col='var(--gold)',bc='var(--border)')=>`<input id="evf-${id}" class="inp" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="${val}" onblur="setEvField('okey','${field}',this.value)" style="margin-bottom:0;text-align:center;font-size:18px;font-weight:700;color:${col};padding:6px;border-color:${bc}"/>`;
 
   return `
     <div style="font-size:10px;color:var(--muted);margin-bottom:10px;font-family:'Cinzel',serif">
@@ -1404,26 +1404,26 @@ function renderOkeyDetail(ev){
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
       <div style="background:#0a0500;border:1px solid var(--border);border-radius:8px;padding:10px">
         <div style="font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;margin-bottom:6px">🃏 SETURI CARDURI</div>
-        <input class="inp" type="number" min="0" value="${ev.seturi||0}" onchange="setEvField('okey','seturi',this.value)" style="margin-bottom:0;text-align:center;font-size:16px;font-weight:700;color:var(--gold);padding:6px"/>
+        <input class="inp" type="text" inputmode="numeric" autocomplete="off" value="${ev.seturi||0}" onblur="setEvField('okey','seturi',this.value)" style="margin-bottom:0;text-align:center;font-size:16px;font-weight:700;color:var(--gold);padding:6px"/>
       </div>
       <div style="background:#0a0500;border:1px solid var(--border);border-radius:8px;padding:10px">
         <div style="font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;margin-bottom:6px">👥 PERSONAJES</div>
-        <input class="inp" type="number" min="1" value="${ev.chars||1}" onchange="setEvField('okey','chars',this.value)" style="margin-bottom:0;text-align:center;font-size:16px;font-weight:700;color:var(--gold);padding:6px"/>
+        <input class="inp" type="text" inputmode="numeric" autocomplete="off" value="${ev.chars||1}" onblur="setEvField('okey','chars',this.value)" style="margin-bottom:0;text-align:center;font-size:16px;font-weight:700;color:var(--gold);padding:6px"/>
       </div>
     </div>
     <div style="font-size:9px;font-family:'Cinzel',serif;color:var(--muted);letter-spacing:1px;margin-bottom:6px">🎁 COFRES OBTENIDOS</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
       <div style="background:#1a0800;border:1px solid #6b3a1f;border-radius:8px;padding:10px;text-align:center">
         <div style="font-size:9px;color:#cd7f32;font-family:'Cinzel',serif;margin-bottom:6px">🥉 BRONZ</div>
-        <input class="inp" type="number" min="0" value="${ev.bronz||0}" onchange="setEvField('okey','bronz',this.value)" style="margin-bottom:0;text-align:center;font-size:18px;font-weight:700;color:#cd7f32;padding:6px;border-color:#6b3a1f"/>
+        <input class="inp" type="text" inputmode="numeric" autocomplete="off" value="${ev.bronz||0}" onblur="setEvField('okey','bronz',this.value)" style="margin-bottom:0;text-align:center;font-size:18px;font-weight:700;color:#cd7f32;padding:6px;border-color:#6b3a1f"/>
       </div>
       <div style="background:#0a0f1a;border:1px solid #4a6080;border-radius:8px;padding:10px;text-align:center">
         <div style="font-size:9px;color:#aac4e0;font-family:'Cinzel',serif;margin-bottom:6px">🥈 ARGINT</div>
-        <input class="inp" type="number" min="0" value="${ev.argint||0}" onchange="setEvField('okey','argint',this.value)" style="margin-bottom:0;text-align:center;font-size:18px;font-weight:700;color:#aac4e0;padding:6px;border-color:#4a6080"/>
+        <input class="inp" type="text" inputmode="numeric" autocomplete="off" value="${ev.argint||0}" onblur="setEvField('okey','argint',this.value)" style="margin-bottom:0;text-align:center;font-size:18px;font-weight:700;color:#aac4e0;padding:6px;border-color:#4a6080"/>
       </div>
       <div style="background:#1a1200;border:1px solid var(--gold3);border-radius:8px;padding:10px;text-align:center">
         <div style="font-size:9px;color:var(--gold);font-family:'Cinzel',serif;margin-bottom:6px">🥇 AUR</div>
-        <input class="inp" type="number" min="0" value="${ev.aur||0}" onchange="setEvField('okey','aur',this.value)" style="margin-bottom:0;text-align:center;font-size:18px;font-weight:700;color:var(--gold);padding:6px"/>
+        <input class="inp" type="text" inputmode="numeric" autocomplete="off" value="${ev.aur||0}" onblur="setEvField('okey','aur',this.value)" style="margin-bottom:0;text-align:center;font-size:18px;font-weight:700;color:var(--gold);padding:6px"/>
       </div>
     </div>
     <div style="border-top:1px solid var(--border2);padding-top:10px;margin-top:4px">
@@ -1432,7 +1432,7 @@ function renderOkeyDetail(ev){
         <div><label class="lbl">Inicio</label><input id="ev-start-okey" class="inp" type="datetime-local" style="color-scheme:dark;font-size:11px" ${ev.startDate?`value="${new Date(ev.startDate).toISOString().slice(0,16)}"`:''}/></div>
         <div><label class="lbl">Fin</label><input id="ev-end-okey" class="inp" type="datetime-local" style="color-scheme:dark;font-size:11px" ${ev.endDate?`value="${new Date(ev.endDate).toISOString().slice(0,16)}"`:''}/></div>
       </div>
-      <div><label class="lbl">Nº Personajes</label><input id="ev-chars-okey" class="inp" type="number" min="1" value="${ev.chars||1}" style="font-size:12px"/></div>
+      <div><label class="lbl">Nº Personajes</label><input id="ev-chars-okey" class="inp" type="text" inputmode="numeric" value="${ev.chars||1}" style="font-size:12px"/></div>
       <button onclick="saveEvDates('okey')" class="btn btn-gold btn-full" style="margin-top:4px">💾 Guardar fechas</button>
     </div>
     ${expired?`<button onclick="archiveEvent('okey')" style="margin-top:10px;width:100%;background:rgba(201,162,39,.1);border:1px solid var(--gold3);color:var(--gold);border-radius:8px;padding:10px;cursor:pointer;font-family:'Cinzel',serif;font-size:11px">📦 Archivar y empezar nuevo</button>`:''}`;
