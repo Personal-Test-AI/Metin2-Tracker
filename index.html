@@ -946,10 +946,10 @@ function renderSeis7(){
     const active=hasItem&&left>0;
     const expired=hasItem&&left<=0;
     const pct=active?Math.max(0,Math.min(100,(left/GEAR_DUR)*100)):0;
-    const open=collapsed['gear_'+c.id]!==false;
+    const open=gearCollapsed[c.id]!==true; // open by default
 
     return `<div class="card">
-      <div class="card-header" onclick="toggleCollapse('gear_${c.id}')">
+      <div class="card-header" onclick="toggleGearCollapse('${c.id}')">
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-size:16px">${CLASS_ICON[classLabel(c.class)]||'⚔️'}</span>
           <span style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:var(--gold2)">${c.name}</span>
@@ -980,9 +980,9 @@ function renderSeis7(){
             <div style="flex:1">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
                 <span style="font-size:13px;font-family:'Cinzel',serif;font-weight:700;color:${expired?'var(--red)':'var(--gold2)'}">${GEAR_CATALOG.find(x=>x.id===c.activeGear)?.name||''}</span>
-                <span style="font-size:13px;font-weight:700;color:${expired?'var(--red)':left<=3600000?'#ff9a40':'var(--gold)'}">${expired?'EXPIRADO':fmtTime(left)}</span>
+                <span style="font-size:13px;font-weight:700;color:${expired?'var(--red)':left<=3600000?'#ff9a40':'var(--gold)'}" data-gear-timer data-aid="${c.aid}" data-cid="${c.id}">${expired?'EXPIRADO':fmtTime(left)}</span>
               </div>
-              ${active?`<div class="pbar-wrap" style="margin-bottom:6px"><div class="pbar pbar-gold" style="width:${pct}%"></div></div>`:''}
+              ${active?`<div class="pbar-wrap" style="margin-bottom:6px"><div class="pbar pbar-gold" data-gear-bar data-aid="${c.aid}" data-cid="${c.id}" style="width:${pct}%"></div></div>`:''}
               ${gearEntry.note?`<div style="font-size:10px;color:var(--muted);margin-bottom:6px;font-style:italic">${gearEntry.note}</div>`:''}
               <div style="display:flex;gap:5px;flex-wrap:wrap">
                 ${active?`
@@ -1001,6 +1001,13 @@ function renderSeis7(){
   }).join('');
 
   el.innerHTML=addPanel+cards;
+}
+
+let gearCollapsed={};
+
+function toggleGearCollapse(cid){
+  gearCollapsed[cid]=!gearCollapsed[cid];
+  renderSeis7();
 }
 
 function addGearTrackingFromSel(){
@@ -1553,6 +1560,26 @@ setInterval(()=>{
     const pct=c.biolog&&left>0?Math.max(0,(1-left/dur)*100):(ready?100:0);
     el.style.width=pct+'%';
     el.className='pbar '+(ready?'pbar-green':'pbar-gold');
+  });
+  // Actualizar timers de gear 6/7
+  document.querySelectorAll('[data-gear-timer]').forEach(el=>{
+    const aid=el.dataset.aid,cid=el.dataset.cid;
+    const acc=accounts.find(a=>a.id===aid);
+    const c=acc?.chars.find(x=>x.id===cid);
+    if(!c||!c.activeGear)return;
+    const g=(c.gear||{})[c.activeGear];
+    const left=g?g.expiresAt-now():0;
+    el.textContent=left>0?fmtTime(left):'EXPIRADO';
+    el.style.color=left<=0?'var(--red)':left<=3600000?'#ff9a40':'var(--gold)';
+  });
+  document.querySelectorAll('[data-gear-bar]').forEach(el=>{
+    const aid=el.dataset.aid,cid=el.dataset.cid;
+    const acc=accounts.find(a=>a.id===aid);
+    const c=acc?.chars.find(x=>x.id===cid);
+    if(!c||!c.activeGear)return;
+    const g=(c.gear||{})[c.activeGear];
+    const left=g?g.expiresAt-now():0;
+    el.style.width=left>0?Math.min(100,(left/GEAR_DUR)*100)+'%':'0%';
   });
   // Re-renderizar tabs que NO son biolog (los otros no tienen formularios problemáticos)
   checkAlerts();
