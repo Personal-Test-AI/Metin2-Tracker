@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -1362,7 +1363,10 @@ function archiveEvent(id){
 function setEvField(id, field, val){
   const n=parseInt(val);
   if(isNaN(n)||n<0)return;
-  saveEvData(id,{[field]:n});
+  const existing=getEvData(id);
+  if(existing){ events=events.map(e=>e.id==='__ev_'+id?{...e,[field]:n}:e); }
+  else{ events.push({id:'__ev_'+id, evType:id, createdAt:now(), [field]:n}); }
+  save(); // no re-render to avoid losing focus
 }
 
 function saveEvDates(id){
